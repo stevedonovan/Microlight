@@ -142,6 +142,8 @@ end
 -- @section table
 ---------------------------------------------------
 
+local tostring = tostring -- so we can globally override tostring!
+
 local function quote (v)
     if type(v) == 'string' then
         return ('%q'):format(v)
@@ -152,45 +154,55 @@ end
 
 local tbuff
 function tbuff (t,buff,k)
-    buff[k] = "{"
-    k = k + 1
-    for key,value in pairs(t) do
-        key = quote(key)
-        if type(value) ~= 'table' then
-            value = quote(value)
-            buff[k] = ('[%s]=%s'):format(key,value)
-            k = k + 1
-            if buff.limit and k > buff.limit then
-                buff[k] = "..."
-                error("buffer overrun")
-            end
-        else
-            if not buff.tables then buff.tables = {} end
-            if not buff.tables[value] then
-                k = tbuff(value,buff,k)
-                buff.tables[value] = true
-            else
-                buff[k] = "<cycle>"
-                k = k + 1
-            end
-        end
-        buff[k] = ","
+    local used
+    local function append (v)
+        buff[k] = v
         k = k + 1
     end
+    append "{"
+    if #t > 0 then -- dump out the array part
+        used = {}
+        for i,value in ipairs(t) do
+            if type(value) == 'table' then
+                k = tbuff(value,buff,k)
+            else
+                append(quote(value))
+            end
+            append ","
+            used[i] = true
+        end
+    end
+    for key,value in pairs(t) do
+        if not used or not used[key] then
+            if type(value) ~= 'table' then
+                -- non-identifiers need []
+                if type(key)~='string' or not key:match '^%a[%w_]*$' then
+                    key = "["..key.."]"
+                end
+                append(key.."="..quote(value))
+            else
+                if not buff.tables[value] then
+                    k = tbuff(value,buff,k)
+                    buff.tables[value] = true
+                else
+                    append "<cycle>"
+                end
+            end
+            append ","
+        end
+    end
     if buff[k-1] == "," then k = k - 1 end
-    buff[k] = "}"
-    k = k + 1
+    append "}"
     return k
 end
 
 --- return a string representation of a Lua value.
 -- Cycles are detected, and a limit on number of items can be imposed.
 -- @param t the table
--- @param limit the limit on items, default 1000
 -- @return a string
 function ml.tstring (t,limit)
     if type(t) == 'table' then
-        local buff = {limit = limit or 1000}
+        local buff = {tables={}}
         pcall(tbuff,t,buff,1)
         return table.concat(buff)
     else

@@ -38,17 +38,20 @@ local ops = {
     ['~'] = function(a,b) return a:find(b) ~= nil end,
 }
 
+local _function_arg = ml.function_arg
+
+function mlx.string_op(f)
+    if type(f) == 'string' then
+        f = ops[f]
+    end
+    return _function_arg(f)
+end
+
 --- enable string operator shortcuts for ml functions.
 -- That is, the string '+' means the addition function, etc.
 -- '()' is the call operator, '[]' is indexing and '{}' is the table operator.
 function mlx.string_operators ()
-    local _function_arg = ml.function_arg
-    ml.function_arg = function(f)
-        if type(f) == 'string' then
-            f = ops[f]
-        end
-        return _function_arg(f)
-    end
+    ml.function_arg = mlx.string_op
 end
 
 ------------------------

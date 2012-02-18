@@ -453,12 +453,12 @@ function ml.collect (iter, select)
     local res,k = {},1
     repeat
         local v = F(iter())
-        if v == nil or (count and k > count) then break end
+        if v == nil then break end
         if v ~= false then
             res[k] = v
             k = k + 1
         end
-    until false
+    until count and k > count
     return res
 end
 

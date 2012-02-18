@@ -223,9 +223,9 @@ end
 -- The output must always be the same length as the input, so
 -- any `nil` values are mapped to `false`.
 -- @param f a function of one or more arguments
--- @param t the table
+-- @param t the list
 -- @param ... any extra arguments to the function
--- @return a list with elements `f(t[i])`
+-- @return a list with elements `f(t[i],...)`
 function ml.imap(f,t,...)
     f = ml.function_arg(f)
     local res = {}
@@ -235,6 +235,14 @@ function ml.imap(f,t,...)
     return res
 end
 
+--- map a function over two lists.
+-- The output must always be the same length as the input, so
+-- any `nil` values are mapped to `false`.
+-- @param f a function of two or more arguments
+-- @param t1 first list
+-- @param t2 second list
+-- @param ... any extra arguments to the function
+-- @return a list with elements `f(t1[i],t2[i],...)`
 function ml.imap2(f,t1,t2)
     f = ml.function_arg(f)
     local res = {}
@@ -243,6 +251,24 @@ function ml.imap2(f,t1,t2)
         res[i] = f(t1[i],t2[i]) or false
     end
     return res
+end
+
+--- call a function repeatedly.
+-- The first argument of the function will be the values
+-- from a list, if specified.
+-- @param t either a count or a list
+-- @param f a function to be repeatedly called
+function ml.foreach(t,f,...)
+    local res,k = {},1
+    if type(t) == 'number' then
+        for i = 1,t do
+            f(...)
+        end
+    else
+        for i = 1,#t do
+            f(t[i],...)
+        end
+    end
 end
 
 local function truth (x)

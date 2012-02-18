@@ -555,7 +555,7 @@ function ml.class(base)
     klass._class = klass
     klass.class_of = function(obj)
         local m = getmetatable(obj) -- an object created by class() ?
-        if not m or not m._klass then return false end
+        if not m or not m._class then return false end
         while m do -- follow the inheritance chain --
             if m == klass then return true end
             m = rawget(m,'_base')

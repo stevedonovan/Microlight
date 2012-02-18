@@ -35,7 +35,8 @@ local ops = {
     ['..'] = function(a,b) return a..b end,
     ['and'] = function(a,b) return a and b end,
     ['or'] = function(a,b) return a or b end,
-    ['~'] = function(a,b) return a:find(b) ~= nil end,
+    ['~'] = function(a,b) return a:match(b) end,
+    ['T'] = function(a) return a and true or false end,
 }
 
 local _function_arg = ml.function_arg

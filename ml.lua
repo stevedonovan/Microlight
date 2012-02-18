@@ -200,7 +200,7 @@ end
 -- Cycles are detected, and a limit on number of items can be imposed.
 -- @param t the table
 -- @return a string
-function ml.tstring (t,limit)
+function ml.tstring (t)
     if type(t) == 'table' then
         local buff = {tables={}}
         pcall(tbuff,t,buff,1)
@@ -258,6 +258,7 @@ end
 -- from a list, if specified.
 -- @param t either a count or a list
 -- @param f a function to be repeatedly called
+-- @param ... any extra arguments to the function
 function ml.foreach(t,f,...)
     local res,k = {},1
     if type(t) == 'number' then
@@ -414,7 +415,7 @@ end
 -- becomes a key. The default value of that key is the original
 -- list index. These values can also be provided directly.
 -- @param t a list of values that become the keys
--- @param v optional list that become the values
+-- @param tv optional list that become the values
 -- @return a table where the keys are the values
 -- @usage makemap{'one','two'} == {one=1,two=2}
 -- @usage makemap({'power','glory'},{20,30}) == {power=20,glory=30}
@@ -530,6 +531,10 @@ function ml.compose(f1,f2)
     end
 end
 
+--- make a binary comparison function.
+-- @param key in structure or array to be compared
+-- @param op '<' for less than, '==' for equals, and otherwise a binary function.
+-- @return a comparison function
 function ml.binop(key,op)
     if op == '<' then
         return function(a,b) return a[key] < b[key] end

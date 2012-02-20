@@ -10,7 +10,7 @@ In Lua, anything beyond the core involves 'personal' choice, and this list of fu
 
 ## Strings
 
-THere is no built-in way to show a text representation of a Lua table, which can be frustrating for people first experimenting with Lua using the interactive prompt.
+THere is no built-in way to show a text representation of a Lua table, which can be frustrating for people first using the interactive prompt. (Please note that globally redefining `tostring` is _not_ a good idea for Lua application development! This trick is intended to make experimation more satisfying.)
 
    > require 'ml'.import()
    > tostring = tstring
@@ -21,6 +21,10 @@ The Lua string functions are particularly powerful but there are some common fun
 
     >  = split('hello dolly')
     {"hello","dolly"}
+    > = split('one,two',',')
+    {"one","two"}
+
+The second argument is a _string pattern_ that defaults to spaces.
 
 Although it's not difficult to do [string interpolation]() in Lua, there's no little function to do it directly. So Microlight provides `ml.expand`.
 
@@ -29,7 +33,12 @@ Although it's not difficult to do [string interpolation]() in Lua, there's no li
 
 `expand` also knows about `${var}` and may also be given a function, just like `string.gsub`.
 
-(escape)
+Lua string functions match using string patterns, which are a powerful subset of proper regular expressions: they contain 'magic' characters like '.','$' etc which you need to escape before using. `escape` is used when you wish to match a string literally:
+
+    > = ('woo%'):gsub(escape('%'),'hoo')
+    "woohoo"   1
+    > = split("1.2.3",escape("."))
+    {"1","2","3"}
 
 ## Files and Paths
 
@@ -127,26 +136,6 @@ Here is the old standby `imap`, which makes a _new_ list by applying a function 
 
 `imap` must always return an list of the same size - if the function returns `nil`, then we avoid leaving a hole in the array by using `false` as a placeholder.
 
-It's useful to repeat an action. `ml` does not provide helpers for _removing_ elements from a list, but `foreach` makes it easy. This example removes 3 values from the second posiiton in the list.
-
-    > t = {10,20,30,40,50,60}
-    > foreach(3,table.remove,t,2)
-    > = t
-    {10,50,60}
-    > foreach(t,print)
-    10
-    50
-    60
-
-If the first argument is a list, it will apply the function to each element in turn. Lua 5.0 has a `table.foreachi`, but it passes the index and the value to the function:
-
-    > table.foreachi(t,print)
-    1       10
-    2       50
-    3       60
-
-`ml.foreach` works just on the values, and it's easier to find suitable functions to pass to it.
-
 Another popular function `indexof` does a linear search for a value and returns the 1-based index, or `nil` if not successful:
 
     > = indexof(numbers,20)
@@ -168,9 +157,9 @@ In general, you want to match something more than just equality. `ifind` will re
 
 # Sets and Maps
 
-`indexof` is not going to be your tool of choice for really big tables, since it does a linear search. Lookup on Lua hash tables is faster, if we can get the data into the right shape.  `makemap` turns a list of values into a table with those values as keys:
+`indexof` is not going to be your tool of choice for really big tables, since it does a linear search. Lookup on Lua hash tables is faster, if we can get the data into the right shape.  `invert` turns a list of values into a table with those values as keys:
 
-    > m = makemap(numbers)
+    > m = invert(numbers)
     > = m
     {[20]=2,[10]=1,[40]=4,[30]=3,[50]=5}
     > = m[20]
@@ -185,12 +174,12 @@ In general, you want to match something more than just equality. `ifind` will re
 
 So from a list we get a reverse lookup map. This is also exactly what we want from a _set_: fast membership test and unique values.
 
-Sets don't particularly care about the actual value, as long as it evaluates as true or false, so `subset` only looks at the keys:
+Sets don't particularly care about the actual value, as long as it evaluates as true or false, so `contains_keys` is _subset_:
 
-    > = subset(m,{one=true,two=true})
+    > = contains_keys(m,{one=true,two=true})
     true
 
-Generally, `makemap` may take another argument and makes up a table where the keys come from the first list and the values from the second list:
+ `makemap` takes another argument and makes up a table where the keys come from the first list and the values from the second list:
 
     > = makemap({'a','b','c'},{1,2,3})
     {a=1,c=3,b=2}
@@ -263,9 +252,6 @@ This pattern generates a whole family of classification functions, e.g. `hex` (u
 
 Predicates are particularly useful for `ifind` and `ifilter`.  It's now easy to filter out strings from a list that match `blank` or `hex`, for instance.
 
-
-(binop)
-
 ## Classes
 
 Lua and Javascript have two important things in common; objects are maps, with sugar so that `t.key == t['key']` and there is no built-in class mechanism. This causes a lot of (iniital) unhappiness. It's straightforward to build a class system, and so it is reinvented numerous times in incompatible ways.
@@ -301,9 +287,9 @@ The class is callable, and when called it returns a new object; if there is an `
 All classes have a `_class` field pointing to itself (which is how `Animal.speak` gets its polymorphic behaviour) and a `class_of` function.
 
 
-## Extensions: A List Class
+## Lists
 
-`mlx.lua` has a few useful things which you might not need everyday. Since Lua 5.1, the string functions can be called as methods, e.g. `s:sub(1,2)`. People commonly would like this convenience for tables as well. But Lua tables are building blocks; to build abstract data types you need to specialize your tables. So `mlx` provides a `List` class:
+Since Lua 5.1, the string functions can be called as methods, e.g. `s:sub(1,2)`. People commonly would like this convenience for tables as well. But Lua tables are building blocks; to build abstract data types you need to specialize your tables. So `ml` provides a `List` class:
 
     local List = ml.class()
 
@@ -336,7 +322,6 @@ But we can add methods to the class directly if the functions have the right fir
 
 `ifilter` and `sub` are almost right, but they need to be wrapped so that they return Lists as expected.
 
-    > import(_G,"mlx")
     > words = List{'frodo','bilbo','sam'}
     > = words:sub(2)
     {"bilbo","sam"}
@@ -364,6 +349,7 @@ Lua anonymous functions have a somewhat heavy syntax; three keywords needed to d
 
 Having the basic Lua operators available as functions turns out to be surprisingly useful:
 
+    > mlx = require 'mlx'
     > F = mlx.string_op
     > = F'+'(10,20)
     30

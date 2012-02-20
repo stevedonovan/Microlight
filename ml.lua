@@ -201,7 +201,7 @@ end
 -- @param t the table
 -- @return a string
 function ml.tstring (t)
-    if type(t) == 'table' then
+    if type(t) == 'table' and not (getmetatable(t) and getmetatable(t).__tostring) then
         local buff = {tables={}}
         pcall(tbuff,t,buff,1)
         return table.concat(buff)
@@ -242,25 +242,6 @@ function ml.imap2(f,t1,t2)
         res[i] = f(t1[i],t2[i]) or false
     end
     return res
-end
-
---- call a function repeatedly.
--- The first argument of the function will be the values
--- from a list, if specified.
--- @param t either a count or a list
--- @param f a function to be repeatedly called
--- @param ... any extra arguments to the function
-function ml.foreach(t,f,...)
-    local res,k = {},1
-    if type(t) == 'number' then
-        for i = 1,t do
-            f(...)
-        end
-    else
-        for i = 1,#t do
-            f(t[i],...)
-        end
-    end
 end
 
 local function truth (x)
@@ -310,23 +291,39 @@ function ml.indexof (t,value)
     end
 end
 
+local function upper (t,i2)
+    if not i2 or i2 > #t then
+        return #t
+    elseif i2 < 0 then
+        return #t + i2 + 1
+    end
+end
+
 --- return a slice of a list.
 -- Like string.sub, the end index may be negative.
 -- @param t the list
 -- @param i1 the start index
 -- @param i2 the end index, default #t
+-- @return a list such that `t[i]` for `i` from `i1` to `i2` inclusive
 function ml.sub(t,i1,i2)
-    if not i2 or i2 > #t then
-        i2 = #t
-    elseif i2 < 0 then
-        i2 = #t + i2 + 1
-    end
+    i2 = upper(t,i2)
     local res,k = {},1
     for i = i1,i2 do
         res[k] = t[i]
         k = k + 1
     end
     return res
+end
+
+--- delete a range of values from a list.
+-- @param tbl the list
+-- @param start start index
+-- @param finish end index (like `ml.sub`)
+function ml.delete(tbl,start,finish)
+    finish = upper(tbl,finish)
+    local count = finish - start + 1
+    for k=start+count,#tbl do tbl[k-count]=tbl[k] end
+    for k=#tbl,#tbl-count+1,-1 do tbl[k]=nil end
 end
 
 --- copy a list into another.
@@ -401,14 +398,10 @@ function ml.extend(t,other)
     return t
 end
 
---- make a map from a list.
--- In its simplest form, this makes a _set_ from a list; each value
--- becomes a key. The default value of that key is the original
--- list index. These values can also be provided directly.
--- @param t a list of values that become the keys
--- @param tv optional list that become the values
--- @return a table where the keys are the values
--- @usage makemap{'one','two'} == {one=1,two=2}
+--- make a table from a list of keys and a list of values.
+-- @param t a list of keys
+-- @param tv a list of values
+-- @return a table where `{[t[i]]=tv[i]}`
 -- @usage makemap({'power','glory'},{20,30}) == {power=20,glory=30}
 function ml.makemap(t,tv)
     local res = {}
@@ -417,6 +410,14 @@ function ml.makemap(t,tv)
     end
     return res
 end
+
+--- make a set from a list.
+-- The values are the original list indices.
+-- @param t a list of values
+-- @return a table where the keys are the indices in the list.
+-- @usage invert{'one','two'} == {one=1,two=2}
+-- @function ml.invert
+ml.invert = ml.makemap
 
 --- extract the keys of a table as a list.
 -- @param t a table
@@ -430,23 +431,23 @@ function ml.keys(t)
     return res
 end
 
---- is `other` a subset of `t`?
+--- are all the keys of `other` in `t`?
+-- Only compares keys!
 -- @param t a set
 -- @param other a possible subset
 -- @return true or false
-function ml.subset(t,other)
+function ml.contains_keys(t,other)
     for k,v in pairs(other) do
         if t[k] == nil then return false end
     end
     return true
 end
 
---- are these two tables equal?
--- This is shallow equality.
+--- do these tables have the same keys?
 -- @param t a table
 -- @param other a table
 -- @return true or false
-function ml.tequal(t,other)
+function ml.equal_keys(t,other)
     return ml.subset(t,other) and ml.subset(other,t)
 end
 
@@ -586,6 +587,65 @@ function ml.class(base)
     })
     return klass
 end
+------------------------
+-- a simple List class.
+-- @table List
 
+local List = ml.class()
+
+local C=ml.compose
+
+-- a class is just a table of functions, so we can do wholesale updates!
+ml.import(List,{
+    -- straight from the table library
+    concat=table.concat,insert=table.insert,remove=table.remove,append=table.insert,
+    -- originals return table; these versions make the tables into lists.
+    filter=C(List,ml.ifilter),sub=C(List,ml.sub), indexby=C(List,ml.indexby),
+    indexof=ml.indexof, find=ml.ifind, extend=ml.extend
+})
+
+-- A constructor can return a _specific_ object
+function List:_init(t)
+    if not t then return nil end  -- no table, make a new one
+    if getmetatable(t)==List then  -- was already a List: copy constructor!
+        t = ml.sub(t,1)
+    end
+    return t
+end
+
+function List.range (x1,x2,d)
+    d = d or 1
+    local res,k = {},1
+    for x = x1,x2,d do
+        res[k] = x
+        k = k + 1
+    end
+    return List(res)
+end
+
+-- need to do this to rearrange self/function order
+
+function List:sort(f) table.sort(self,f); return self end
+function List:sorted(f) return List(self:sort(f)) end
+function List:map(f,...) return List(ml.imap(f,self,...)) end
+function List:map2(f,other) return List(ml.imap2(f,self,other)) end
+
+function List:__tostring()
+    return '{' .. self:map(ml.tstring):concat ',' .. '}'
+end
+
+function List.__eq(l1,l2)
+    if #l1 ~= #l2 then return false end
+    for i = 1,#l1 do
+        if t[i] ~= other[i] then return false end
+    end
+    return true
+end
+
+function List.__concat (l1,l2)
+    return List(ml.extend(ml.extend({},l1),l2))
+end
+
+ml.List = List
 
 return ml

@@ -210,15 +210,6 @@ function ml.tstring (t)
     end
 end
 
---- dump a Lua value to a file object.
--- With no second argument, dumps to standard output.
--- @param t the table
--- @param f the file object (anything supporting f.write)
-function ml.tdump(t,...)
-    local f = select('#',...) > 0 and select(1,...) or io.stdout
-    f:write(ml.tstring(t),'\n')
-end
-
 --- map a function over a list.
 -- The output must always be the same length as the input, so
 -- any `nil` values are mapped to `false`.
@@ -528,21 +519,6 @@ function ml.compose(f1,f2)
     f2 = ml.function_arg(f2)
     return function(...)
         return f1(f2(...))
-    end
-end
-
---- make a binary comparison function.
--- @param key in structure or array to be compared
--- @param op '<' for less than, '==' for equals, and otherwise a binary function.
--- @return a comparison function
-function ml.binop(key,op)
-    if op == '<' then
-        return function(a,b) return a[key] < b[key] end
-    elseif op == '==' then
-        return function(a,b) return a[key] == b[key] end
-    else
-        op = ml.function_arg(op)
-        return function(a,b) return op(a[key],b[key]) end
     end
 end
 

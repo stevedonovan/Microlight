@@ -1,43 +1,30 @@
 local ml = require 'ml'
+local mlx = require 'mlx'
+local Set = mlx.Set
 
 ml.import(_G,ml)
 
 t = {one=1,two=2,10,20,{1,2}}
 
-tdump(t)
-
---print(tequal({1,2,one=1},{1,2,one=2}))
+print(tstring(t))
 
 printf = compose(io.write,string.format)
 
 printf("the answer is %d\n",42)
 
-local Table = {}
-Table.__index = Table
-
-function Table.new(t)
-    return setmetatable(t or {},Table)
-end
-
-local T = Table.new
-
-import(Table,{
-    concat=table.concat,sort=table.sort,insert=table.insert,
-    ifilter=ml.ifilter,filter=ml.tfilter,index=ml.index,
-    tfind=ml.tfind,ifind=ml.ifind,extend=ml.extend,update=ml.update,
-})
-
-function Table:imap(f,...) return T(imap(f,self,...)) end
-function Table:map(f,...) return T(tmap(f,self,...)) end
-Table.sub = compose(T,sub)
---function Table:sub(i1,i2) return T(sub(self,i1,i2)) end
-
-t = Table.new{10,20,30}
+t = List{10,20,30}
 t:insert(1,5)
-t = t:imap(function(x) return x*x end)
+t = t:map(function(x) return x*x end)
 t:extend {3,2,1}
 t = t:sub(2,-2)
-print(t:concat ',')
+print(t)
+
+s1 = Set{1,2,3}
+s2 = Set{1,2}
+s3 = Set{1,2,3}
+
+assert( s2 < s1, s1 == s3 )
+
 
 Animal = class()
 
@@ -57,17 +44,11 @@ print(Animal "tiger")
 
 Cat = class(Animal)
 
---[[
-function Cat:_init (name)
-    --self._base._init(self,name)
-    self:super(name)
-end
---]]
-
 function Cat:kind ()
     return 'cat'
 end
 
+--- can override if you like...
 --~ function Cat:__tostring ()
 --~     return "meeoww "..self.name
 --~ end

@@ -448,7 +448,7 @@ end
 -- @param other a table
 -- @return true or false
 function ml.equal_keys(t,other)
-    return ml.subset(t,other) and ml.subset(other,t)
+    return ml.contains_keys(t,other) and ml.contains_keys(other,t)
 end
 
 local function makeT (...) return {...} end

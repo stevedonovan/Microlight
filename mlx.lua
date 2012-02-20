@@ -2,6 +2,21 @@ local ml = require 'ml'
 
 local mlx = {}
 
+--- make a binary comparison function.
+-- @param key in structure or array to be compared
+-- @param op '<' for less than, '==' for equals, and otherwise a binary function.
+-- @return a comparison function
+function ml.binop(key,op)
+    if op == '<' then
+        return function(a,b) return a[key] < b[key] end
+    elseif op == '==' then
+        return function(a,b) return a[key] == b[key] end
+    else
+        op = ml.function_arg(op)
+        return function(a,b) return op(a[key],b[key]) end
+    end
+end
+
 --- enable operator shortcuts for functional operations.
 -- `*` will now mean `ml.bind1`, and `..` will mean `ml.compose`
 -- Please note that this modifies the metatable for _all_ functions,
@@ -59,52 +74,61 @@ end
 -- a simple List class.
 -- @type List
 
-local List = ml.class()
-
-local C=ml.compose
-
--- a class is just a table of functions, so we can do wholesale updates!
-ml.import(List,{
-    -- straight from the table library
-    concat=table.concat,sort=table.sort,insert=table.insert,remove=table.remove,append=table.insert,
-    -- originals return table; these versions make the tables into lists.
-    filter=C(List,ml.ifilter),sub=C(List,ml.sub), indexby=C(List,ml.indexby),
-    indexof=ml.indexof, find=ml.ifind, extend=ml.extend
+--- Set class
+local Set = {}
+setmetatable(Set,{
+    __call = function(klass,t)
+        if #t > 0 then t = ml.invert(t) end
+        setmetatable(t,Set)
+        return t
+    end
 })
 
--- A constructor can return a _specific_ object
-function List:_init(t)
-    if t then return t end
+-- set union
+function Set.__add(s1,s2)
+    return Set(ml.import(ml.import({},s1),s2))
 end
 
-function List.range (x1,x2,d)
-    d = d or 1
-    local res,k = {},1
-    for x = x1,x2,d do
-        res[k] = x
-        k = k + 1
+-- set intersection
+function Set.__mul(s1,s2)
+    local res = {}
+    for k in pairs(s1) do
+        if s2[k] then res[k] = true end
     end
-    return List(res)
+    return Set(res)
 end
 
--- need to do this to rearrange self/function order
-
-function List:map(f,...) return List(ml.imap(f,self,...)) end
-function List:map2(f,other) return List(ml.imap2(f,self,other)) end
-
-function List:__tostring()
-    return '{' .. self:map(ml.tstring):concat ',' .. '}'
+-- subset
+function Set.__lt(s1,s2)
+    return ml.contains_keys(s2,s1)
 end
 
-function List.__eq(l1,l2)
-    if #l1 ~= #l2 then return false end
-    for i = 1,#l1 do
-        if t[i] ~= other[i] then return false end
+-- equality
+function Set.__eq(s1,s2)
+    return ml.equal_keys(s1,s2)
+end
+
+-- elements of `s1` not in `s2`
+function Set.__sub(s1,s2)
+    local res = {}
+    for k in pairs(s1) do
+        if not s2[k] then res[k] = true end
     end
-    return true
+    return Set(res)
 end
 
-mlx.List = List
+function Set:__tostring()
+    return '['..ml.List(ml.keys(self)):map(ml.tstring):concat ',' .. ']'
+end
+
+function Set:__len()
+    local k = 0
+    for k in pairs(self) do k = k + 1 end
+    return k
+end
+
+mlx.Set = Set
+
 
 return mlx
 

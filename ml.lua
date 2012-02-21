@@ -604,53 +604,53 @@ function ml.class(base)
     return klass
 end
 ------------------------
--- a simple List class.
--- @table List
+-- a simple Array class.
+-- @table Array
 
-local List = ml.class()
+local Array = ml.class()
 
 local C=ml.compose
 
 -- a class is just a table of functions, so we can do wholesale updates!
-ml.import(List,{
+ml.import(Array,{
     -- straight from the table library
     concat=table.concat,insert=table.insert,remove=table.remove,append=table.insert,
     -- originals return table; these versions make the tables into lists.
-    filter=C(List,ml.ifilter),sub=C(List,ml.sub), indexby=C(List,ml.indexby),
+    filter=C(Array,ml.ifilter),sub=C(Array,ml.sub), indexby=C(Array,ml.indexby),
     indexof=ml.indexof, find=ml.ifind, extend=ml.extend
 })
 
 -- A constructor can return a _specific_ object
-function List:_init(t)
+function Array:_init(t)
     if not t then return nil end  -- no table, make a new one
-    if getmetatable(t)==List then  -- was already a List: copy constructor!
+    if getmetatable(t)==Array then  -- was already a Array: copy constructor!
         t = ml.sub(t,1)
     end
     return t
 end
 
-function List.range (x1,x2,d)
+function Array.range (x1,x2,d)
     d = d or 1
     local res,k = {},1
     for x = x1,x2,d do
         res[k] = x
         k = k + 1
     end
-    return List(res)
+    return Array(res)
 end
 
 -- need to do this to rearrange self/function order
 
-function List:sort(f) table.sort(self,f); return self end
-function List:sorted(f) return List(self):sort(f) end
-function List:map(f,...) return List(ml.imap(f,self,...)) end
-function List:map2(f,other) return List(ml.imap2(f,self,other)) end
+function Array:sort(f) table.sort(self,f); return self end
+function Array:sorted(f) return Array(self):sort(f) end
+function Array:map(f,...) return Array(ml.imap(f,self,...)) end
+function Array:map2(f,other) return Array(ml.imap2(f,self,other)) end
 
-function List:__tostring()
+function Array:__tostring()
     return '{' .. self:map(ml.tstring):concat ',' .. '}'
 end
 
-function List.__eq(l1,l2)
+function Array.__eq(l1,l2)
     if #l1 ~= #l2 then return false end
     for i = 1,#l1 do
         if t[i] ~= other[i] then return false end
@@ -658,10 +658,11 @@ function List.__eq(l1,l2)
     return true
 end
 
-function List.__concat (l1,l2)
-    return List(ml.extend(ml.extend({},l1),l2))
+function Array.__concat (l1,l2)
+    return Array(ml.extend(ml.extend({},l1),l2))
 end
 
-ml.List = List
+ml.Array = Array
+ml.List = Array
 
 return ml

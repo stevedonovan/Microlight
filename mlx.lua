@@ -121,11 +121,7 @@ function Set:__tostring()
     return '['..ml.List(ml.keys(self)):map(ml.tstring):concat ',' .. ']'
 end
 
-function Set:__len()
-    local k = 0
-    for k in pairs(self) do k = k + 1 end
-    return k
-end
+Set.__len = ml.count_keys
 
 mlx.Set = Set
 

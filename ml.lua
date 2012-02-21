@@ -159,12 +159,22 @@ function tbuff (t,buff,k)
         buff[k] = v
         k = k + 1
     end
+    local function table_out (value,key)
+        if not buff.tables[value] then
+            buff.tables[value] = true
+            k = tbuff(value,buff,k)
+        else
+            if key then append(key.."=<cycle>")
+            else append("<cycle>")
+            end
+        end
+    end
     append "{"
     if #t > 0 then -- dump out the array part
         used = {}
         for i,value in ipairs(t) do
             if type(value) == 'table' then
-                k = tbuff(value,buff,k)
+                table_out(value)
             else
                 append(quote(value))
             end
@@ -176,17 +186,13 @@ function tbuff (t,buff,k)
         if not used or not used[key] then
             if type(value) ~= 'table' then
                 -- non-identifiers need []
-                if type(key)~='string' or not key:match '^%a[%w_]*$' then
+                if buff.stupid or type(key)~='string' or not key:match '^%a[%w_]*$' then
+                    key = quote(key)
                     key = "["..key.."]"
                 end
                 append(key.."="..quote(value))
             else
-                if not buff.tables[value] then
-                    k = tbuff(value,buff,k)
-                    buff.tables[value] = true
-                else
-                    append "<cycle>"
-                end
+                table_out(value,key)
             end
             append ","
         end
@@ -198,11 +204,13 @@ end
 
 --- return a string representation of a Lua value.
 -- Cycles are detected, and a limit on number of items can be imposed.
+-- Use `stupid` if you want something correct for serialization, e.g. `{['function']=true}`
 -- @param t the table
+-- @param stupid put out all keys as [..]
 -- @return a string
-function ml.tstring (t)
+function ml.tstring (t,stupid)
     if type(t) == 'table' and not (getmetatable(t) and getmetatable(t).__tostring) then
-        local buff = {tables={}}
+        local buff = {tables={[t]=true},stupid=stupid}
         pcall(tbuff,t,buff,1)
         return table.concat(buff)
     else
@@ -326,22 +334,21 @@ function ml.delete(tbl,start,finish)
     for k=#tbl,#tbl-count+1,-1 do tbl[k]=nil end
 end
 
---- copy a list into another.
+--- copy values from `src` into `dest` starting at `index`.
+-- By default, it inserts into `dest` and moves up elements of `src`
+-- to make room.
 -- @param dest destination list
+-- @param index start index in destination
 -- @param src source list
--- @param idest start index in destination, default 1
--- @param isrc start index in source, default 1
--- @param nsrc number of elements to copy, default #src
--- @return the first list
-function ml.icopy(dest,src,idest,isrc,nsrc)
-    local k = idest or 1
-    isrc = isrc or 1
-    nsrc = nsrc or #src
-    for i = isrc,nsrc do
-        dest[k] = src[i]
-        k = k + 1
+-- @param overwrite write over values
+function ml.inject(dest,index,src,overwrite)
+    local sz = #src
+    if not overwrite then
+        for i = #dest,index,-1 do dest[i+sz] = dest[i] end
     end
-    return dest
+    for i = 1,sz do
+        dest[index+i-1] = src[i]
+    end
 end
 
 --- make a list of indexed values.
@@ -441,6 +448,15 @@ function ml.contains_keys(t,other)
         if t[k] == nil then return false end
     end
     return true
+end
+
+--- return the number of keys in this table.
+-- @param t a table
+-- @return key count, (which is set cardinality)
+function ml.count_keys (t)
+    local count = 0
+    for k in pairs(t) do count = count + 1 end
+    return count
 end
 
 --- do these tables have the same keys?
@@ -626,7 +642,7 @@ end
 -- need to do this to rearrange self/function order
 
 function List:sort(f) table.sort(self,f); return self end
-function List:sorted(f) return List(self:sort(f)) end
+function List:sorted(f) return List(self):sort(f) end
 function List:map(f,...) return List(ml.imap(f,self,...)) end
 function List:map2(f,other) return List(ml.imap2(f,self,other)) end
 

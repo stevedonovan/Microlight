@@ -11,11 +11,11 @@ local ml = {}
 -- @section string
 ---------------------------------------------------
 
---- split a string into a list of strings separated by a delimiter.
+--- split a string into a array of strings separated by a delimiter.
 -- @param s The input string
 -- @param re A Lua string pattern; defaults to '%s+'
 -- @param n optional maximum number of splits
--- @return a list
+-- @return a array
 function ml.split(s,re,n)
     local find,sub,append = string.find, string.sub, table.insert
     local i1,ls = 1,{}
@@ -136,7 +136,7 @@ end
 
 ---------------------------------------------------
 -- Extended table functions.
--- 'list' here is shorthand for 'list-like table'; these functions
+-- 'array' here is shorthand for 'array-like table'; these functions
 -- only operate over the numeric `1..#t` range of a table and are
 -- particularly efficient for this purpose.
 -- @section table
@@ -186,7 +186,7 @@ function tbuff (t,buff,k)
         if not used or not used[key] then
             if type(value) ~= 'table' then
                 -- non-identifiers need []
-                if buff.stupid or type(key)~='string' or not key:match '^%a[%w_]*$' then
+                if buff.stupid or type(key)~='string' or not key:match '^[%a_][%w_]*$' then
                     key = quote(key)
                     key = "["..key.."]"
                 end
@@ -218,13 +218,13 @@ function ml.tstring (t,stupid)
     end
 end
 
---- map a function over a list.
+--- map a function over a array.
 -- The output must always be the same length as the input, so
 -- any `nil` values are mapped to `false`.
 -- @param f a function of one or more arguments
--- @param t the list
+-- @param t the array
 -- @param ... any extra arguments to the function
--- @return a list with elements `f(t[i],...)`
+-- @return a array with elements `f(t[i],...)`
 function ml.imap(f,t,...)
     f = ml.function_arg(f)
     local res = {}
@@ -234,14 +234,14 @@ function ml.imap(f,t,...)
     return res
 end
 
---- map a function over two lists.
+--- map a function over two arrays.
 -- The output must always be the same length as the input, so
 -- any `nil` values are mapped to `false`.
 -- @param f a function of two or more arguments
--- @param t1 first list
--- @param t2 second list
+-- @param t1 first array
+-- @param t2 second array
 -- @param ... any extra arguments to the function
--- @return a list with elements `f(t1[i],t2[i],...)`
+-- @return a array with elements `f(t1[i],t2[i],...)`
 function ml.imap2(f,t1,t2)
     f = ml.function_arg(f)
     local res = {}
@@ -256,13 +256,13 @@ local function truth (x)
     return x and true or false
 end
 
---- filter a list using a predicate.
+--- filter a array using a predicate.
 -- If `pred` is absent, then we provide a default which
 -- filters out any `false` values.
 -- @param t a table
 -- @param pred the predicate function
 -- @param ... any extra arguments to the predicate
--- @return a list such that `pred(t[i])` is true
+-- @return a array such that `pred(t[i])` is true
 function ml.ifilter(t,pred,...)
     local res,k = {},1
     pred = ml.function_arg(pred or truth)
@@ -275,8 +275,8 @@ function ml.ifilter(t,pred,...)
     return res
 end
 
---- find an item in a list using a predicate.
--- @param t the list
+--- find an item in a array using a predicate.
+-- @param t the array
 -- @param pred a function of at least one argument
 -- @param ... any extra arguments
 -- @return the item value
@@ -289,8 +289,8 @@ function ml.ifind(t,pred,...)
     end
 end
 
---- return the index of an item in a list.
--- @param t the list
+--- return the index of an item in a array.
+-- @param t the array
 -- @param value item value
 -- @return index, otherwise `nil`
 function ml.indexof (t,value)
@@ -307,12 +307,12 @@ local function upper (t,i2)
     end
 end
 
---- return a slice of a list.
+--- return a slice of a array.
 -- Like string.sub, the end index may be negative.
--- @param t the list
+-- @param t the array
 -- @param i1 the start index
 -- @param i2 the end index, default #t
--- @return a list such that `t[i]` for `i` from `i1` to `i2` inclusive
+-- @return a array such that `t[i]` for `i` from `i1` to `i2` inclusive
 function ml.sub(t,i1,i2)
     i2 = upper(t,i2)
     local res,k = {},1
@@ -323,8 +323,8 @@ function ml.sub(t,i1,i2)
     return res
 end
 
---- delete a range of values from a list.
--- @param tbl the list
+--- delete a range of values from a array.
+-- @param tbl the array
 -- @param start start index
 -- @param finish end index (like `ml.sub`)
 function ml.delete(tbl,start,finish)
@@ -337,9 +337,9 @@ end
 --- copy values from `src` into `dest` starting at `index`.
 -- By default, it inserts into `dest` and moves up elements of `src`
 -- to make room.
--- @param dest destination list
+-- @param dest destination array
 -- @param index start index in destination
--- @param src source list
+-- @param src source array
 -- @param overwrite write over values
 function ml.inject(dest,index,src,overwrite)
     local sz = #src
@@ -351,11 +351,11 @@ function ml.inject(dest,index,src,overwrite)
     end
 end
 
---- make a list of indexed values.
+--- make a array of indexed values.
 -- Generalized table indexing
 -- @param t a table
--- @param keys a list of keys or indices
--- @return a list `L` such that `L[keys[i]]`
+-- @param keys a array of keys or indices
+-- @return a array `L` such that `L[keys[i]]`
 -- @usage indexby({one=1,two=2},{'one'}) == {1}
 function ml.indexby(t,keys)
     local res,k = {},1
@@ -365,6 +365,30 @@ function ml.indexby(t,keys)
     end
     return res
 end
+
+--- create an array of numbers from start to end.
+-- With one argument it goes `1..x1`. `d` may be a
+-- floating-point fraction
+-- @param x1 start value
+-- @param x2 end value
+-- @param d increment (default 1)
+-- @return array of numbers
+-- @usage range(2,10) == {2,3,4,5,6,7,8,9,10}
+-- @usage range(5) == {1,2,3,4,5}
+function ml.range (x1,x2,d)
+    if not x2 then
+        x2 = x1
+        x1 = 1
+    end
+    d = d or 1
+    local res,k = {},1
+    for x = x1,x2,d do
+        res[k] = x
+        k = k + 1
+    end
+    return Array(res)
+end
+
 
 --- add the key/value pairs of `other` to `t`.
 -- For sets, this is their union. For the same keys,
@@ -393,10 +417,10 @@ function ml.import(t,...)
     return t
 end
 
---- extend a list using values from another.
--- @param t the list to be extended
--- @param other a list
--- @return the extended list
+--- extend a array using values from another.
+-- @param t the array to be extended
+-- @param other a array
+-- @return the extended array
 function ml.extend(t,other)
     local n = #t
     for i = 1,#other do
@@ -405,9 +429,9 @@ function ml.extend(t,other)
     return t
 end
 
---- make a table from a list of keys and a list of values.
--- @param t a list of keys
--- @param tv a list of values
+--- make a table from a array of keys and a array of values.
+-- @param t a array of keys
+-- @param tv a array of values
 -- @return a table where `{[t[i]]=tv[i]}`
 -- @usage makemap({'power','glory'},{20,30}) == {power=20,glory=30}
 function ml.makemap(t,tv)
@@ -418,17 +442,17 @@ function ml.makemap(t,tv)
     return res
 end
 
---- make a set from a list.
--- The values are the original list indices.
--- @param t a list of values
--- @return a table where the keys are the indices in the list.
+--- make a set from a array.
+-- The values are the original array indices.
+-- @param t a array of values
+-- @return a table where the keys are the indices in the array.
 -- @usage invert{'one','two'} == {one=1,two=2}
 -- @function ml.invert
 ml.invert = ml.makemap
 
---- extract the keys of a table as a list.
+--- extract the keys of a table as a array.
 -- @param t a table
--- @return a list of keys
+-- @return a array of keys
 function ml.keys(t)
     local res,k = {},1
     for key in pairs(t) do
@@ -470,11 +494,11 @@ end
 local function makeT (...) return {...} end
 local function nop (x) return x end
 
---- collect the values of an iterator into a list.
+--- collect the values of an iterator into a array.
 -- @param iter an iterator returning one or more values
 -- @param select (optional) Either a number of values to collect, or `true`
 -- meaning collect values as a tuple, or a function to process/filter values.
--- @return a list of values.
+-- @return a array of values.
 -- @usage collect(math.random,3) == {0.23,0.75,0.13}
 function ml.collect (iter, select)
     local F,count = nop
@@ -615,8 +639,9 @@ local C=ml.compose
 ml.import(Array,{
     -- straight from the table library
     concat=table.concat,insert=table.insert,remove=table.remove,append=table.insert,
-    -- originals return table; these versions make the tables into lists.
+    -- originals return table; these versions make the tables into arrays.
     filter=C(Array,ml.ifilter),sub=C(Array,ml.sub), indexby=C(Array,ml.indexby),
+    range = C(Array,ml.range),
     indexof=ml.indexof, find=ml.ifind, extend=ml.extend
 })
 
@@ -627,16 +652,6 @@ function Array:_init(t)
         t = ml.sub(t,1)
     end
     return t
-end
-
-function Array.range (x1,x2,d)
-    d = d or 1
-    local res,k = {},1
-    for x = x1,x2,d do
-        res[k] = x
-        k = k + 1
-    end
-    return Array(res)
 end
 
 -- need to do this to rearrange self/function order

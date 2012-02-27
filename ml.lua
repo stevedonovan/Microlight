@@ -304,6 +304,8 @@ local function upper (t,i2)
         return #t
     elseif i2 < 0 then
         return #t + i2 + 1
+    else
+        return i2
     end
 end
 

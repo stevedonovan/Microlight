@@ -679,6 +679,9 @@ function Array.__concat (l1,l2)
     return Array(ml.extend(ml.extend({},l1),l2))
 end
 
+-- x(2,3) is short for x:sub(2,3)
+Array.__call = Array.sub
+
 ml.Array = Array
 ml.List = Array
 

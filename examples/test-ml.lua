@@ -1,3 +1,4 @@
+--package.path = '../?.lua;'..package.path
 local ml = require 'ml'
 local mlx = require 'mlx'
 local Set = mlx.Set
@@ -12,7 +13,7 @@ printf = compose(io.write,string.format)
 
 printf("the answer is %d\n",42)
 
-t = List{10,20,30}
+t = Array{10,20,30}
 t:insert(1,5)
 t = t:map(function(x) return x*x end)
 t:extend {3,2,1}

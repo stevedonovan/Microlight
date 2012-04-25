@@ -49,11 +49,13 @@ function ml.escape(s)
 end
 
 --- expand a string containing any ${var} or $var.
+-- However, you should pick _either one_ consistently!
 -- @param s the string
 -- @param subst either a table or a function (as in `string.gsub`)
 -- @return expanded string
 function ml.expand (s,subst)
-    local res = s:gsub('%${([%w_]+)}',subst)
+    local res,k = s:gsub('%${([%w_]+)}',subst)
+    if k > 0 then return res end
     return (res:gsub('%$([%w_]+)',subst))
 end
 
@@ -159,14 +161,12 @@ function tbuff (t,buff,k)
         buff[k] = v
         k = k + 1
     end
-    local function table_out (value,key)
+    local function table_out (value)
         if not buff.tables[value] then
             buff.tables[value] = true
             k = tbuff(value,buff,k)
         else
-            if key then append(key.."=<cycle>")
-            else append("<cycle>")
-            end
+            append("<cycle>")
         end
     end
     append "{"
@@ -184,15 +184,20 @@ function tbuff (t,buff,k)
     end
     for key,value in pairs(t) do
         if not used or not used[key] then
-            if type(value) ~= 'table' then
-                -- non-identifiers need []
-                if buff.stupid or type(key)~='string' or not key:match '^[%a_][%w_]*$' then
+            -- non-identifiers need []
+            if buff.stupid or type(key)~='string' or not key:match '^[%a_][%w_]*$' then
+                if type(key)=='table' then
+                    key = ml.tstring(key)
+                else
                     key = quote(key)
-                    key = "["..key.."]"
                 end
-                append(key.."="..quote(value))
+                key = "["..key.."]"
+            end
+            append(key..'=')
+            if type(value) ~= 'table' then
+                append(quote(value))
             else
-                table_out(value,key)
+                table_out(value)
             end
             append ","
         end
@@ -242,12 +247,12 @@ end
 -- @param t2 second array
 -- @param ... any extra arguments to the function
 -- @return a array with elements `f(t1[i],t2[i],...)`
-function ml.imap2(f,t1,t2)
+function ml.imap2(f,t1,t2,...)
     f = ml.function_arg(f)
     local res = {}
     local n = math.min(#t1,#t2)
     for i = 1,n do
-        res[i] = f(t1[i],t2[i]) or false
+        res[i] = f(t1[i],t2[i],...) or false
     end
     return res
 end
@@ -527,6 +532,26 @@ end
 -- Functional helpers.
 -- @section function
 ---------------------------------------------------
+
+--- create a function which will throw an error on failure.
+-- @param f a function that returns nil,err if it fails
+-- @param quit exit the script immediately with the error (default false)
+-- @return an equivalent function that raises an error
+function ml.throw(f,quit)
+    f = ml.function_arg(f)
+    return function(...)
+        local res,err = f(...)
+        if err then
+            if quit then
+                io.stderr:write(err,'\n')
+                os.exit(1)
+            else
+                error(err,2)
+            end
+        end
+        return res
+    end
+end
 
 --- bind the value `v` to the first argument of function `f`.
 -- @param f a function of at least one argument

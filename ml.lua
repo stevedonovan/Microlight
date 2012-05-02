@@ -42,11 +42,17 @@ function ml.split(s,re,n)
     end
 end
 
+ml.lua51 = _VERSION:match '5%.1$'
+
 --- escape any 'magic' characters in a string
 -- @param s The input string
 -- @return an escaped string
 function ml.escape(s)
-    return (s:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]','%%%1'))
+    local res = s:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]','%%%1')
+    if ml.lua51 then
+        res = res:gsub('%z','%%z')
+    end
+    return res
 end
 
 --- expand a string containing any ${var} or $var.

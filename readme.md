@@ -28,10 +28,10 @@ The second argument is a _string pattern_ that defaults to spaces.
 
 Although it's not difficult to do [string interpolation]() in Lua, there's no little function to do it directly. So Microlight provides `ml.expand`.
 
-    > = expand("hello $you, from ${me}",{you='dolly',me='joe'})
+    > = expand("hello $you, from $me",{you='dolly',me='joe'})
     hello dolly, from joe
 
-`expand` also knows about `${var}` and may also be given a function, just like `string.gsub`.
+`expand` also understands the alternative `${var}` and may also be given a function, just like `string.gsub`.
 
 Lua string functions match using string patterns, which are a powerful subset of proper regular expressions: they contain 'magic' characters like '.','$' etc which you need to escape before using. `escape` is used when you wish to match a string literally:
 
@@ -87,10 +87,10 @@ These functions return _two_ strings, one of which may be the empty string (rath
 
 Most of the Microlight functions work on Lua tables. Although these may be _both_ arrays _and_ hashmaps, generally we tend to _use_ them as one or the other. From now on, we'll use array and map as shorthand terms for tables
 
-`import` adds key/value pairs to a map, and `extend` appends an array to an array; they are two complementary ways to add multiple items to a table in a single operation.
+`update` adds key/value pairs to a map, and `extend` appends an array to an array; they are two complementary ways to add multiple items to a table in a single operation.
 
     > a = {one=1,two=2}
-    > import(a,{three=3,four=4})
+    > update(a,{three=3,four=4})
     > = a
     {one=1,four=4,three=3,two=2}
     > t = {10,20,30}
@@ -98,19 +98,19 @@ Most of the Microlight functions work on Lua tables. Although these may be _both
     > = t
     {10,20,30,40,50}
 
-To insert multiple values into a position within an array, use `inject`. It works like `table.insert`, except that the third argument is an array of values. If you do want to overwrite values, then use `true` for the fourth argument:
+To insert multiple values into a position within an array, use `insertvalues`. It works like `table.insert`, except that the third argument is an array of values. If you do want to overwrite values, then use `true` for the fourth argument:
 
     > t = {10,20,30,40,50}
-    > inject(t,2,{11,12})
+    > insertvalues(t,2,{11,12})
     > = t
     {10,11,12,20,30,40,50}
-    > inject(t,3,{2,3},true)
+    > insertvalues(t,3,{2,3},true)
     > = t
     {10,11,2,3,30,40,50}
 
 (Please note that the _original_ table is modified by these functions.)
 
-`import` has a few tricks up its sleeve; if the second argument is a string, then it's assumed to be a module name to be passed to `require()`. So this both brings in LuaFileSystem and imports its functions into the global table:
+`update' is also known as `import` and has a few tricks up its sleeve; if the second argument is a string, then it's assumed to be a module name to be passed to `require()`. So this both brings in LuaFileSystem and imports its functions into the global table:
 
     > import(_G,'lfs')
 
@@ -152,6 +152,8 @@ Another popular function `indexof` does a linear search for a value and returns 
     > = indexof(numbers,234)
     nil
 
+This function takes an optional third argument, which is a custom equality function.
+
 In general, you want to match something more than just equality. `ifind` will return the first value that satisfies the given function.
 
     > s = {'x','10','20','y'}
@@ -163,7 +165,7 @@ The standard function `tonumber` returns a non-nil value, so the corresponding v
     > = ifilter(numbers,tonumber)
     {"10","20"}
 
-Finally, `delete` removes a _range_ of values from an array, and takes the same arguments as `sub`.
+Finally, `removerange` removes a _range_ of values from an array, and takes the same arguments as `sub`.
 
 # Sets and Maps
 
@@ -184,9 +186,9 @@ Finally, `delete` removes a _range_ of values from an array, and takes the same 
 
 So from a array we get a reverse lookup map. This is also exactly what we want from a _set_: fast membership test and unique values.
 
-Sets don't particularly care about the actual value, as long as it evaluates as true or false, so `contains_keys` is _subset_:
+Sets don't particularly care about the actual value, as long as it evaluates as true or false, hence:
 
-    > = contains_keys(m,{one=true,two=true})
+    > = issubset(m,{one=true,two=true})
     true
 
  `makemap` takes another argument and makes up a table where the keys come from the first array and the values from the second array:
@@ -194,15 +196,15 @@ Sets don't particularly care about the actual value, as long as it evaluates as 
     > = makemap({'a','b','c'},{1,2,3})
     {a=1,c=3,b=2}
 
-Finally, `collect` makes a array out of an iterator. The second argument can be the number of values to collect, which is useful for iterators that never terminate.
+Finally, `collect` makes a array out of an iterator. 'collect_until` can be given the number of values to collect or a custom predicate, which is useful for iterators that never terminate.
 
     > s = 'my dog ate your homework'
     > words = collect(s:gmatch '%a+')
     > = words
     {"my","dog","ate","your","homework"}
-    > = collect(math.random,3)
+    > = collect_until(3,math.random)
     {0.0012512588885159,0.56358531449324,0.19330423902097}
-    > lines = collect(io.lines(),4)
+    > lines = collect_until(4,io.lines())
     one
     two
     three
@@ -357,89 +359,4 @@ Arrays are easier to use and involve less typing because the table functions are
     {11,21,31,41,51}
 
 Lua anonymous functions have a somewhat heavy syntax; three keywords needed to define a short lambda.  It would be cool if the shorthand syntax `|x| x+1` used by Metalua would make into mainstream Lua, but there seems to be widespread resistance to this litle convenience.
-
-## Experiments: String Operator Shortcuts
-
-The `mlx` module contains things which aren't part of the Microlight core. So if you came to see the strict definition of Microlight, then read no further. However, you may find some of these ideas appealing.
-
-Having the basic Lua operators available as functions turns out to be surprisingly useful:
-
-    > mlx = require 'mlx'
-    > F = mlx.string_op
-    > = F'+'(10,20)
-    30
-    > = F'{}'(10,20)
-    {10,20}
-    > = F'[]'({10,20},2)
-    20
-    > = F'~' ('hello','l+')
-    "ll"
-    > match = compose('T','~')
-    > = match('hello','l+')
-    true
-    > = match('hello','bye')
-    false
-
-All the usual binary operators, plus 'or' and 'and', are available. '{}' wraps up table construction, '~' does `string.match`, and 'T` is when you do want the result to be boolean.
-
-We can ask for these shortcuts to be used in the `ml` functions like so:
-
-    > mlx.string_operators()
-    > records = {{name='Joe',age=25},{name='Alice',age=23}}
-    > = imap('[]',records,'age')
-    25,23
-    > = l:map('+',1)
-    {11,21,31,41,51}
-    > = l:map2('+',{1,2})
-    {11,22}
-    > zip = bind2(imap2,'{}')
-    > = zip(l,{'one','two','three'},{1,2,3})
-    {{10,"one"},{20,"two"},{30,"three"}}
-
-
-That feels better! Note that the commonly-defined `zip` function comes naturally out of making the `imap2` operation table construction.
-
-## Evil Manipulations: Functional Operators
-
-`mlx` contains the following evil incantation:
-
-    debug.setmetatable(print,{__concat=ml.compose,__mul=ml.bind1})
-
-Now, all types Lua may have metatables, but apart from userdata and tables they all _share a single metatable_ per type.  So I can change the behaviour of all functions by picking on poor old `print`. This is evil because I am making a global modification and Libraries Must Not Do That. This is one of the few things that the Lua community does get uptight about; the casual monkey-patching of the Rubyists is frowned upon, and in my humble opinion the Web would now be a faster and more solid experience if Lua had become the hip dynamic server language.
-
-So this modification only happens if you ask for it, and it's not a good idea to use it in modules for the general, trusting public.
-
-    > mlx.function_operators()
-
-The standard disclaimer over, let's see how a little operator magic can help functional operations.
-
-    > printf = io.write .. string.format
-    > printf("not bad, %s!\n",'Joe')
-    not bad, Joe!
-
-Binding the first argument is the most useful:
-
-    > column = imap * '[]'
-    > ages = column(records,'age')
-    > = collect(math.random*100,10)
-    {1,57,20,81,59,48,36,90,83,75}
-
-`bind2` is common because the first argument of many standard functions is the table or string to be operated on.
-
-    tail = sub/2
-    blank = string.match/'^%s*$'
-
-These operators may be built into functional expressions:
-
-    log = (io.stderr.write*io.stderr)/'\n'
-
-(That is, make a error writer by binding the error file object to its write method, and then bind '\n' to its second argument.)
-
-We don't have a `trim` function (and perhaps it should be one of the Top Thirty). But its definition is surprisingly elegant:
-
-    trim = gsub/'^%s*'/''..gsub/'%s*$'/''
-
-It's unwise to push a good idea too far, of course. Functional expressions can get unreadable very quickly.
-
-
 

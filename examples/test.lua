@@ -1,11 +1,16 @@
 local ml = require 'ml'
 local A = ml.Array
+unpack = unpack or table.unpack
 
 ml.import(_G,ml)
 
 t = {one={two=2},10,20,{1,2}}
 
 assert(tstring(t) == "{10,20,{1,2},one={two=2}}")
+
+local charmap = string.char(unpack(range(0,255)))
+assert(("aa"..charmap.."bb"):match(escape(charmap)) == charmap)
+
 
 assert(split('hello','')[1] == 'hello')
 

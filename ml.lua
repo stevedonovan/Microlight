@@ -28,15 +28,15 @@ function ml.split(s,re,n)
             local last = sub(s,i1)
             if last ~= '' then append(ls,last) end
             if #ls == 1 and ls[1] == '' then
-                return {}
+                return Array{}
             else
-                return ls
+                return Array(ls)
             end
         end
         append(ls,sub(s,i1,i2-1))
         if n and #ls == n then
             ls[#ls] = sub(s,i1)
-            return ls
+            return Array(ls)
         end
         i1 = i3+1
     end
@@ -613,6 +613,24 @@ function ml.function_arg(f)
     assert(ml.callable(f),"expecting a function or callable object")
     return f
 end
+
+--- 'memoize' a function (cache returned value for next call).
+-- This is useful if you have a function which is relatively expensive,
+-- but you don't know in advance what values will be required, so
+-- building a table upfront is wasteful/impossible.
+-- @param func a function of at least one argument
+-- @return a function with at least one argument, which is used as the key.
+function ml.memoize(func)
+    return setmetatable({}, {
+        __index = function(self, k, ...)
+            local v = func(k,...)
+            self[k] = v
+            return v
+        end,
+        __call = function(self, k) return self[k] end
+    })
+end
+
 
 ---------------------------------------------------
 -- Classes.

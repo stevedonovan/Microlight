@@ -7,12 +7,36 @@ t = {one={two=2},10,20,{1,2}}
 
 assert(tstring(t) == "{10,20,{1,2},one={two=2}}")
 
+assert(split('hello','')[1] == 'hello')
+
+a123 = A{'one','two','three'}
+assert(split('one,two,three',',') == a123)
+
+assert(split('one,,two',',') == A{'one','','two'})
+
+-- trailing delimiter ignored!
+assert(split('one,two,three,',',') == a123)
+
+-- delimiter is a Lua pattern (use escape if necessary!)
+-- splitting tokens separated by commas and/or spaces
+assert(split('one, two,three  ','[,%s]+') == a123)
+assert(split('one two  three  ','[,%s]+') == a123)
+
+
 t = {10,20,30,40}
 
 assert(sub (t,1,2) == A{10,20})
 
 assert(indexof(t,20) == 2)
 
+-- indexof may have an optional specialized equality function
+idx = indexof({'one','two','three'},'TWO',function(s1,s2)
+    return s1:upper()==s2:upper()
+  end
+)
+assert (idx == 2)
+
+-- generalization of table indexing
 assert(indexby(t,{1,4}) == A{10,40})
 
 assert(range(1,4) == A{1,2,3,4})
@@ -41,6 +65,7 @@ removerange(t,2,3)
 assert(ta == A{10,40,50,60})
 
 -- insert some values at the start
+-- (insertvalues in general can be expensive when actually inserting)
 insertvalues(t,1,{2,5})
 assert(ta == A{2,5,10,40,50,60})
 
@@ -88,6 +113,18 @@ assert( bind1(string.match,'hello')('^hell') == 'hell')
 isdigits = bind2(string.match,'^%d+$')
 assert( isdigits '23105')
 assert( not isdigits '23x5' )
+
+local k = 0
+
+f = memoize(function(s)
+    k = k + 1
+    return s:upper()
+end)
+
+assert(f'one' == 'ONE')
+assert(f'one' == 'ONE')
+assert(k == 1)
+
 
 
 

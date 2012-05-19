@@ -205,14 +205,14 @@ function tbuff (t,buff,k,start_indent,indent)
     end
     append "{"
     if start_indent then append '\n' end
-    --- array part -------
+    -- array part -------
     local array = {}
     for i,value in ipairs(t) do
         append(indent)
         put_item(value)
         array[i] = true
     end
-    ---- 'map' part ------
+    -- 'map' part ------
     for key,value in pairs(t) do if not array[key] then
         append(indent)
         -- non-identifiers need ["key"]
@@ -248,8 +248,10 @@ function tbuff (t,buff,k,start_indent,indent)
 end
 
 --- return a string representation of a Lua value.
--- Cycles are detected, and a limit on number of items can be imposed.
+-- Cycles are detected, and the result can be optionally indented nicely.
 -- @param t the table
+-- @param how (optional) a table with fields `spacing' and 'indent', or a string corresponding
+-- to `indent`.
 -- @return a string
 function ml.tstring (t,how)
     if type(t) == 'table' and not (getmetatable(t) and getmetatable(t).__tostring) then

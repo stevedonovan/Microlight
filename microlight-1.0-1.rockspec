@@ -1,7 +1,7 @@
 package = "microlight"
 version = "1.0-1"
 source = {
-   url = "git:://github.com/stevedonovan/Microlight.git",
+   url = "git://github.com/stevedonovan/Microlight.git",
    tag = "1.0",
    dir = "."
 }

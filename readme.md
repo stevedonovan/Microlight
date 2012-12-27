@@ -4,18 +4,18 @@ The Lua standard library is deliberately kept small, based on the abstract platf
 
 Microlight is an attempt at 'library golf', by analogy to the popular nerd sport 'code golf'. The idea here is to try capture some of these functions in one place and document them well enough so that it is easier to use them than to write them yourself.
 
-This library is mostly based on Penlight, which started out as a practical exercise in reproducing some core parts of the Python libraries for Lua, but subsequently started collecting modules useful for application development, such as configuration file reading, pretty-printing, and so forth. It is mostly my code, together with David Manura, and is very much a personal selection.  There are nearly two dozen modules and hundreds of functions.
+This library is intended to be a 'extra light' version of Penlight, which has nearly two dozen modules and hundreds of functions.
 
-In Lua, anything beyond the core involves 'personal' choice, and this list of functions does not claim to aspire to 'canonical' status.  It's the start of a community process to find the Top Thirty useful functions.
+In Lua, anything beyond the core involves 'personal' choice, and this list of functions does not claim to aspire to 'canonical' status. It emerged from discussion on the Lua Mailing list started by Jay Carlson, and was implemented by myself and Dirk Laurie.
 
 ## Strings
 
-THere is no built-in way to show a text representation of a Lua table, which can be frustrating for people first using the interactive prompt. (Please note that globally redefining `tostring` is _not_ a good idea for Lua application development! This trick is intended to make experimation more satisfying.)
+THere is no built-in way to show a text representation of a Lua table, which can be frustrating for people first using the interactive prompt. Microlight provides `tstring`. Please note that globally redefining `tostring` is _not_ a good idea for Lua application development! This trick is intended to make experimation more satisfying:
 
-   > require 'ml'.import()
-   > tostring = tstring
-   > = {10,20,name='joe'}
-   {10,20,name="joe"}
+    > require 'ml'.import()
+    > tostring = tstring
+    > = {10,20,name='joe'}
+    {10,20,name="joe"}
 
 The Lua string functions are particularly powerful but there are some common functions missing that tend to come up in projects frequently. There is `table.concat` for building a string out of a table, but no `table.split` to break a string into a table.
 
@@ -26,12 +26,12 @@ The Lua string functions are particularly powerful but there are some common fun
 
 The second argument is a _string pattern_ that defaults to spaces.
 
-Although it's not difficult to do [string interpolation]() in Lua, there's no little function to do it directly. So Microlight provides `ml.expand`.
+Although it's not difficult to do [string interpolation](http://lua-users.org/wiki/StringInterpolation) in Lua, there's no little function to do it directly. So Microlight provides `ml.expand`.
 
     > = expand("hello $you, from $me",{you='dolly',me='joe'})
     hello dolly, from joe
 
-`expand` also understands the alternative `${var}` and may also be given a function, just like `string.gsub`.
+`expand` also understands the alternative `${var}` and may also be given a function, just like `string.gsub`. (But pick one _or_ the other consistently.)
 
 Lua string functions match using string patterns, which are a powerful subset of proper regular expressions: they contain 'magic' characters like '.','$' etc which you need to escape before using. `escape` is used when you wish to match a string literally:
 
@@ -59,11 +59,11 @@ The return value is _not_ a simple true or false; it returns the filename if it 
     > = exists 'README' or exists 'readme.txt' or exists 'readme.md'
     "readme.md"
 
-Lua is good at slicing and dicing text, so a common strategy is to read all of a not-so-big file and process the string. This is the job of `readfile`. For instance, this returns the first 128 bytes of the file:
+Lua is good at slicing and dicing text, so a common strategy is to read all of a not-so-big file and process the string. This is the job of `readfile`. For instance, this returns the first 128 bytes of the file opened in binary mode:
 
-    > txt = readfile('readme.md'):sub(1,128)
+    > txt = readfile('readme.md',true):sub(1,128)
 
-Note I said bytes, not characters, since strings can contain any byte sequence. But to be portable you need to say `readfile(name,true)` to ensure that the file is not read as text.
+Note I said bytes, not characters, since strings can contain any byte sequence.
 
 If `readfile` can't open a file, or can't read from it, it will return `nil` and an error message. This is the pattern followed by `io.open` and many other Lua functions; it is considered bad form to raise an error for a _routine_ problem.
 
@@ -98,6 +98,14 @@ Most of the Microlight functions work on Lua tables. Although these may be _both
     > = t
     {10,20,30,40,50}
 
+As from version 1.1, both of these functions take an arbitrary number of tables. To 'flatten' a table, just unpack it and use `extend`:
+
+    > pair = {{1,2},{3,4}}
+    > = extend({},unpack(pair))
+    {1,2,3,4}
+
+Note that to make a shallow copy of a table, just say `extend({},t)`.
+
 To insert multiple values into a position within an array, use `insertvalues`. It works like `table.insert`, except that the third argument is an array of values. If you do want to overwrite values, then use `true` for the fourth argument:
 
     > t = {10,20,30,40,50}
@@ -110,13 +118,23 @@ To insert multiple values into a position within an array, use `insertvalues`. I
 
 (Please note that the _original_ table is modified by these functions.)
 
-`update' is also known as `import` and has a few tricks up its sleeve; if the second argument is a string, then it's assumed to be a module name to be passed to `require()`. So this both brings in LuaFileSystem and imports its functions into the global table:
+`update' works like `extend`. except that all the key value pairs from the input tables are copied into the first argument. Keys may be overwritten by subsequent tables.
 
-    > import(_G,'lfs')
+    > t = {}
+    > update(t,{one=1},{ein=1},{one='ONE'})
+    > = t
+    {one="ONE",ein=1}
 
-With a single argument, `import` brings in the `ml` table itself. If the first argument is `nil` then it's assumed to be the global table.
+`import` is a specialized version of `update`; if the first argument is `nil` then it's assumed to be the global table. If no tables are provided, it brings in the ml table itself (hence the lazy `require "ml".import()` idiom).
 
-The opposite operation is getting a number of items. There's `sub`, which works just like `string.sub` and is the equivalent of list slicing in Python:
+If the arguments are strings, then we try to `require` them.  So this brings in LuaFileSystem and imports `lfs` into the global table. So it's a lazy way to do a whole bunch of requires. A module 'package.mod' will be brought in as `mod`. Note that the second form actually does bring all of `lpeg`'s functions in.
+
+    > import(nil,'lfs')
+    > import(nil,require 'lpeg')
+
+The opposite operation to extending is extracting a number of items from a table.
+
+There's `sub`, which works just like `string.sub` and is the equivalent of list slicing in Python:
 
     > numbers = {10,20,30,40,50}
     > = sub(numbers,1,1)
@@ -167,7 +185,7 @@ The standard function `tonumber` returns a non-nil value, so the corresponding v
 
 Finally, `removerange` removes a _range_ of values from an array, and takes the same arguments as `sub`.
 
-# Sets and Maps
+## Sets and Maps
 
 `indexof` is not going to be your tool of choice for really big tables, since it does a linear search. Lookup on Lua hash tables is faster, if we can get the data into the right shape.  `invert` turns a array of values into a table with those values as keys:
 
@@ -196,13 +214,14 @@ Sets don't particularly care about the actual value, as long as it evaluates as 
     > = makemap({'a','b','c'},{1,2,3})
     {a=1,c=3,b=2}
 
-Finally, `collect` makes a array out of an iterator. 'collect_until` can be given the number of values to collect or a custom predicate, which is useful for iterators that never terminate.
+Finally, `collect` makes a array out of an iterator. 'collect_until` can be given the number of values to collect or a custom predicate, which is useful for iterators that never terminate. (Note that we need to pass it either a proper iterator, like `pairs`, or a function or exactly one function - which isn't the case with `math.random`)
 
     > s = 'my dog ate your homework'
     > words = collect(s:gmatch '%a+')
     > = words
     {"my","dog","ate","your","homework"}
-    > = collect_until(3,math.random)
+    > R = function() return math.random() end
+    > = collect_until(3,R)
     {0.0012512588885159,0.56358531449324,0.19330423902097}
     > lines = collect_until(4,io.lines())
     one
@@ -221,7 +240,11 @@ A simple utility to sort standard input looks like this:
 
 # Higher-order Functions
 
-Functions are first-class values in Lua, so functions may manipulate them, often called 'higher-order' functions. Function _composition_ is often useful:
+Functions are first-class values in Lua, so functions may manipulate them, often called 'higher-order' functions.
+
+By _callable_ we either mean a function or an object which has a `__call` metamethod. The `callable` function checks for this case.
+
+Function _composition_ is often useful:
 
     > printf = compose(io.write,string.format)
     > printf("the answer is %d\n",42)
@@ -264,9 +287,22 @@ This pattern generates a whole family of classification functions, e.g. `hex` (u
 
 Predicates are particularly useful for `ifind` and `ifilter`.  It's now easy to filter out strings from a array that match `blank` or `hex`, for instance.
 
+There is a pair of functions `map2fun` and `fun2map` which convert indexable objects into callables and vice versa. Say I have a table of key/value pairs, but an API requires a function - use `map2fun`. Alternatively, the API might want a lookup table and you only have a lookup function.  Say we have an array of objects with a name field. The `find` method will give us an object with a particular name:
+
+    > obj = objects:find ('X.name=Y','Alfred')
+    {name='Afred',age=23}
+    > by_name = function(name) return objects:find('X.name=Y',name) end
+    > lookup = fun2map(by_name)
+    > = lookup.Alfred
+    {name='Alfred',age=23}
+
+Now if you felt particularly clever and/or sadistic, that anonymous function could be written like so: (note the different quotes needed to get a nested string lambda):
+
+    by_name = bind1('X:find("X.name==Y",Y)',objects)
+
 ## Classes
 
-Lua and Javascript have two important things in common; objects are maps, with sugar so that `t.key == t['key']` and there is no built-in class mechanism. This causes a lot of (iniital) unhappiness. It's straightforward to build a class system, and so it is reinvented numerous times in incompatible ways.
+Lua and Javascript have two important things in common; objects are associative arrays, with sugar so that `t.key == t['key']`; there is no built-in class mechanism. This causes a lot of (iniital) unhappiness. It's straightforward to build a class system, and so it is reinvented numerous times in incompatible ways.
 
 `class` works as expected:
 
@@ -321,18 +357,11 @@ We can't just add `imap`, because the function signature is wrong; the first arg
 
 But we can add methods to the class directly if the functions have the right first argument, and don't return anything:
 
-    local C=ml.compose
-
     ml.import(Array,{
         -- straight from the table library
         concat=table.concat,sort=table.sort,insert=table.insert,
         remove=table.remove,append=table.insert,
-        -- straight from ml
-        indexof=ml.indexof, find=ml.ifind, extend=ml.extend,
-        -- originals return table; these versions make the tables into arrays.
-        filter=C(Array,ml.ifilter),
-        sub=C(Array,ml.sub),
-        indexby=C(Array,ml.indexby),
+    ...
     })
 
 `ifilter` and `sub` are almost right, but they need to be wrapped so that they return Arrays as expected.
@@ -348,7 +377,14 @@ But we can add methods to the class directly if the functions have the right fir
     > = words:filter(string.match,'o$'):map(string.upper)
     {"BILBO","FRODO"}
 
-Arrays are easier to use and involve less typing because the table functions are directly available from them. Methods may be _chained_, which (I think) reads better than the usual functional application order from right to left.
+Arrays are easier to use and involve less typing because the table functions are directly available from them.  Methods may be _chained_, which (I think) reads better than the usual functional application order from right to left.  For instance, the sort utility discussed above simply becomes:
+
+    local Array = require 'ml'.Array
+    print(Array.collect(io.lines()):sort():concat '\n')
+
+I don't generally recommend putting everything on one line, but it can be done if the urge is strong ;)
+
+The ml table functions are available as methods:
 
     > l = Array.range(10,50,10)
     > = l:indexof(30)
@@ -358,5 +394,85 @@ Arrays are easier to use and involve less typing because the table functions are
     > = l:map(function(x) return x + 1 end)
     {11,21,31,41,51}
 
-Lua anonymous functions have a somewhat heavy syntax; three keywords needed to define a short lambda.  It would be cool if the shorthand syntax `|x| x+1` used by Metalua would make into mainstream Lua, but there seems to be widespread resistance to this litle convenience.
+Lua anonymous functions have a somewhat heavy syntax; three keywords needed to define a short lambda.  It would be cool if the shorthand syntax `|x| x+1` used by Metalua would make into mainstream Lua, but there seems to be widespread resistance to this little convenience. In the meantime, there are _string lambdas_.  All ml functions taking function args go through `function_arg` which raises an error if the argument isn't callable. But it will also understand 'X+1' as a shorthand for the above anonymous function. Such strings are expressions containing the placeholder variables `X`,`Y` and `Z` corresponding to the first, second and third arguments.
+
+    > A = Array
+    > a1 = A{1,2}
+    > a2 = A{10,20}
+    > = a1:map2('X+Y',a2)
+    {11,21}
+
+String lambdas are more limited. There's no easy (or efficient) way for them to access local variables like proper functions; they only see the global environment. BUt I consider this a virtue, since they are intended to be 'pure' functions with no side-effects.
+
+## Experiments!
+
+Every library project has a few things which didn't make the final cut, and this is particularly true of Microlight.  The `ml_properties` module allows you to define properties in your classes. This comes from `examples/test.lua':
+
+    local props = require 'ml_properties'
+
+    local P = class()
+
+    -- will be called after setting _props
+    function P:update (k,v)
+        last_set = k
+    end
+
+    -- any explicit setters will be called on construction
+    function P:set_name (name)
+        self.myname = name
+    end
+
+    function P:get_name ()
+        last_get = 'name'
+        return self.myname
+    end
+
+    -- have to call this after any setters or getters are defined...
+    props(P,{
+        __update = P.update;
+        enabled = true,  -- these are default values
+        visible = false,
+        name = 'foo', -- has both a setter and a getter
+    })
+
+    local p = P()
+
+    -- initial state
+    asserteq (p,{myname="foo",_enabled=true,_visible=false})
+
+    p.visible = true
+
+    -- P.update fired!
+    asserteq(last_set,'visible')
+
+`ml_range` (constributed by Dirk Laurie for this release) returns a function which works like `ml.range`, except that it returns a Vector class which has element-wise addition and multiplication operators.
+
+`ml_module` is a Lua 5.2 module constructor which shows off that interesting function `ml.import`.  Here is the example in the distribution:
+
+    -- mod52.lua
+    local _ENV = require 'ml_module' (nil, -- no wholesale access to _G
+        'print','assert','os', -- quoted global values brought in
+        'lfs', -- not global, so use require()!
+        table -- not quoted, import the whole table into the environment!
+        )
+
+    function format (s)
+        local out = {'Hello',s,'at',os.date('%c'),'here is',lfs.currentdir()}
+        -- remember table.* has been brought in..
+        return concat(out,' ')
+    end
+
+    function message(s)
+        print(format(s))
+    end
+
+    -- no, we didn't bring anything else in
+    assert(setmetatable == nil)
+
+    -- NB return the _module_, not the _environment_!
+    return _M
+
+This uses a 'shadow table' trick; the environment `_ENV` contains all the imports, plus the exported functions; the actual module `_M` only contains the exported functions.  So it's equivalent to the old-fashioned `module('mod',package.seeall)` technique, except that there is no way of accessing the environment of the module without using the debug module - which you would never allow into a sandboxed environment anyway.
+
+
 

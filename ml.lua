@@ -5,18 +5,18 @@
 -- @module ml
 
 local ml = {}
-local Array
+local select,pairs = select,pairs
 
 ---------------------------------------------------
 -- String utilties.
 -- @section string
 ---------------------------------------------------
 
---- split a string into a array of strings separated by a delimiter.
+--- split a string into a table of strings separated by a delimiter.
 -- @param s The input string
 -- @param re A Lua string pattern; defaults to '%s+'
 -- @param n optional maximum number of splits
--- @return a array
+-- @return a table of strings
 function ml.split(s,re,n)
     local find,sub,append = string.find, string.sub, table.insert
     local i1,ls = 1,{}
@@ -28,15 +28,15 @@ function ml.split(s,re,n)
             local last = sub(s,i1)
             if last ~= '' then append(ls,last) end
             if #ls == 1 and ls[1] == '' then
-                return Array{}
+                return {}
             else
-                return Array(ls)
+                return ls
             end
         end
         append(ls,sub(s,i1,i2-1))
         if n and #ls == n then
             ls[#ls] = sub(s,i1)
-            return Array(ls)
+            return ls
         end
         i1 = i3+1
     end
@@ -101,9 +101,9 @@ end
 
 local sep, other_sep = package.config:sub(1,1),'/'
 
-
---- split a file path.
--- if there's no directory part, the first value will be the empty string
+--- split a path into directory and file part.
+-- if there's no directory part, the first value will be the empty string.
+-- Handles both forward and back-slashes on Windows.
 -- @param P A file path
 -- @return the directory part
 -- @return the file part
@@ -121,7 +121,7 @@ function ml.splitpath(P)
     end
 end
 
---- given a path, return the root part and the extension part.
+--- split a path into root part and extension part.
 -- if there's no extension part, the second value will be empty
 -- @param P A file path
 -- @return the name part
@@ -265,6 +265,59 @@ function ml.tstring (t,how)
     end
 end
 
+local function _imap (dest,f,t,...)
+    f = ml.function_arg(f)
+    for i = 1,#t do
+        dest[i] = f(t[i],...) or false
+    end
+    return dest
+end
+
+local append = table.insert
+
+--- collect a series of values from an interator.
+-- @param ... iterator
+-- @return array-like table
+-- @usage collect(pairs(t)) is the same as keys(t)
+function ml.collect (...)
+    local res = {}
+    for k in ... do append(res,k) end
+    return res
+end
+
+--- collect up to n values from an interator.
+-- `n` is usually an integer, but it can be a function. If that
+-- function returns true, then collection stops.
+-- @param n count
+-- @param ... iterator
+-- @return array-like table
+function ml.collect_until (n,...)
+    local res,i,pred = {},1
+    if type(n) == 'number' then
+        pred = function(k,i) return i > n end
+    else
+        pred = ml.function_arg(n)
+    end
+    print('args',...)
+    for k in ... do
+        if pred(k,i) then break end
+        res[i] = k
+        i = i + 1
+    end
+    return res
+end
+
+--- collect the second value from a iterator.
+-- If the second value is `nil`, it won't be collected!
+-- @param ... iterator
+-- @return array-like table
+-- @usage collect2nd(pairs(t)) would be the values of t
+function ml.collect2nd (...)
+    local res = {}
+    for _,v in ... do append(res,v) end
+    return res
+end
+
 --- map a function over a array.
 -- The output must always be the same length as the input, so
 -- any `nil` values are mapped to `false`.
@@ -273,22 +326,25 @@ end
 -- @param ... any extra arguments to the function
 -- @return a array with elements `f(t[i],...)`
 function ml.imap(f,t,...)
-    f = ml.function_arg(f)
-    local res = {}
-    for i = 1,#t do
-        res[i] = f(t[i],...) or false
-    end
-    return Array(res)
+    return _imap({},f,t,...)
 end
 
---- map a function over two arrays.
--- The output must always be the same length as the input, so
--- any `nil` values are mapped to `false`.
+--- apply a function to each element of an array.
+-- @param f a function of one or more arguments
+-- @param t the array
+-- @param ... any extra arguments to the function
+-- @return the transformed array
+function ml.transform (f,t,...)
+    return _imap(t,f,t,...)
+end
+
+--- map a function over values from two arrays.
+-- Length of output is the size of the smallest array.
 -- @param f a function of two or more arguments
 -- @param t1 first array
 -- @param t2 second array
 -- @param ... any extra arguments to the function
--- @return a array with elements `f(t1[i],t2[i],...)`
+-- @return an array with elements `f(t1[i],t2[i],...)`
 function ml.imap2(f,t1,t2,...)
     f = ml.function_arg(f)
     local res = {}
@@ -296,30 +352,25 @@ function ml.imap2(f,t1,t2,...)
     for i = 1,n do
         res[i] = f(t1[i],t2[i],...) or false
     end
-    return Array(res)
-end
-
-local function truth (x)
-    return x and true or false
+    return res
 end
 
 --- filter a array using a predicate.
--- If `pred` is absent, then we provide a default which
--- filters out any `false` values.
 -- @param t a table
--- @param pred the predicate function
+-- @param pred a function that must return `nil` or `false`
+-- to exclude a value
 -- @param ... any extra arguments to the predicate
--- @return a array such that `pred(t[i])` is true
+-- @return a array such that `pred(t[i])` evaluates as true
 function ml.ifilter(t,pred,...)
     local res,k = {},1
-    pred = ml.function_arg(pred or truth)
+    pred = ml.function_arg(pred)
     for i = 1,#t do
         if pred(t[i],...) then
             res[k] = t[i]
             k = k + 1
         end
     end
-    return Array(res)
+    return res
 end
 
 --- find an item in a array using a predicate.
@@ -327,6 +378,7 @@ end
 -- @param pred a function of at least one argument
 -- @param ... any extra arguments
 -- @return the item value
+-- @usage ifind({{1,2},{4,5}},'X[1]==Y',4) is {4,5}
 function ml.ifind(t,pred,...)
     pred = ml.function_arg(pred)
     for i = 1,#t do
@@ -339,12 +391,10 @@ end
 --- return the index of an item in a array.
 -- @param t the array
 -- @param value item value
--- @param cmp optional comparison function (default is `v==value`)
+-- @param cmp optional comparison function (default is `X==Y`)
 -- @return index, otherwise `nil`
 function ml.indexof (t,value,cmp)
-    if cmp then
-        cmp = ml.function_arg(cmp)
-    end
+    if cmp then cmp = ml.function_arg(cmp) end
     for i = 1,#t do
         local v = t[i]
         if cmp and cmp(v,value) or v == value then
@@ -363,20 +413,24 @@ local function upper (t,i2)
     end
 end
 
---- return a slice of a array.
--- Like string.sub, the end index may be negative.
--- @param t the array
--- @param i1 the start index
--- @param i2 the end index, default #t
--- @return a array such that `t[i]` for `i` from `i1` to `i2` inclusive
-function ml.sub(t,i1,i2)
-    i2 = upper(t,i2)
-    local res,k = {},1
+local function copy_range (dest,index,src,i1,i2)
+    local k = index
     for i = i1,i2 do
-        res[k] = t[i]
+        dest[k] = src[i]
         k = k + 1
     end
-    return Array(res)
+    return dest
+end
+
+--- return a slice of a array.
+-- Like `string.sub`, the end index may be negative.
+-- @param t the array
+-- @param i1 the start index, default 1
+-- @param i2 the end index, default #t
+-- @return an array of `t[i]` for `i` from `i1` to `i2` inclusive
+function ml.sub(t,i1,i2)
+    i1, i2 = i1 or 1, upper(t,i2)
+    return copy_range({},1,t,i1,i2)
 end
 
 --- delete a range of values from a array.
@@ -391,8 +445,7 @@ function ml.removerange(tbl,start,finish)
 end
 
 --- copy values from `src` into `dest` starting at `index`.
--- By default, it inserts into `dest` and moves up elements of `src`
--- to make room.
+-- By default, it moves up elements of `dest` to make room.
 -- @param dest destination array
 -- @param index start index in destination
 -- @param src source array
@@ -402,17 +455,17 @@ function ml.insertvalues(dest,index,src,overwrite)
     if not overwrite then
         for i = #dest,index,-1 do dest[i+sz] = dest[i] end
     end
-    for i = 1,sz do
-        dest[index+i-1] = src[i]
-    end
+    copy_range(dest,index,src,1,sz)
 end
 
---- extend a array using values from another.
+--- extend a array using values from other tables.
 -- @param t the array to be extended
--- @param other a array
+-- @param ... the other arrays
 -- @return the extended array
-function ml.extend(t,other)
-    ml.insertvalues(t,#t+1,other)
+function ml.extend(t,...)
+    for i = 1,select('#',...) do
+        ml.insertvalues(t,#t+1,select(i,...),true)
+    end
     return t
 end
 
@@ -428,7 +481,7 @@ function ml.indexby(t,keys)
         res[k] = t[v] or false
         k = k + 1
     end
-    return Array(res)
+    return res
 end
 
 --- create an array of numbers from start to end.
@@ -451,39 +504,57 @@ function ml.range (x1,x2,d)
         res[k] = x
         k = k + 1
     end
-    return Array(res)
+    return res
 end
 
-
---- add the key/value pairs of `other` to `t`.
--- For sets, this is their union. For the same keys,
--- the values from the first table will be overwritten.
--- If `other` is a string, then it becomes the result of `require`
+-- Bring modules or tables into 't`.
+-- If `lib` is a string, then it becomes the result of `require`
 -- With only one argument, the second argument is assumed to be
 -- the `ml` table itself.
--- @param t table to be updated
--- @param other table
+-- @param t table to be updated, or current environment
+-- @param lib table, module name or `nil` for importing 'ml'
 -- @return the updated table
 function ml.import(t,...)
     local other
     -- explicit table, or current environment
+    -- this isn't quite right - we won't get the calling module's _ENV
+    -- this way. But it does prevent execution of the not-implemented setfenv.
     t = t or _ENV or getfenv(2)
-    if select('#',...) == 0 then -- default is to pull in this library!
-        other = ml
+    local libs = {}
+    if select('#',...)==0 then -- default is to pull in this library!
+        libs[1] = ml
     else
-        other = ...
-        if type(other) == 'string' then -- lazy require!
-            other = require (other)
+        for i = 1,select('#',...) do
+            local lib = select(i,...)
+            if type(lib) == 'string' then
+                local value = _G[lib]
+                if not value then -- lazy require!
+                    value = require (lib)
+                    -- and use the module part of package for the key
+                    lib = lib:match '[%w_]+$'
+                end
+                lib = {[lib]=value}
+            end
+            libs[i] = lib
         end
     end
-    for k,v in pairs(other) do
-        t[k] = v
+    return ml.update(t,unpack(libs))
+end
+
+--- add the key/value pairs of arrays to the first array.
+-- For sets, this is their union. For the same keys,
+-- the values from the first table will be overwritten.
+-- @param t table to be updated
+-- @param ... tables containg more pairs to be added
+-- @return the updated table
+function ml.update (t,...)
+    for i = 1,select('#',...) do
+        for k,v in pairs(select(i,...)) do
+            t[k] = v
+        end
     end
     return t
 end
-
-ml.update = ml.import
-
 
 --- make a table from a array of keys and a array of values.
 -- @param t a array of keys
@@ -510,19 +581,13 @@ ml.invert = ml.makemap
 -- @param t a table
 -- @return a array of keys
 function ml.keys(t)
-    local res,k = {},1
-    for key in pairs(t) do
-        res[k] = key
-        k = k + 1
-    end
-    return Array(res)
+    return ml.collect(pairs(t))
 end
 
---- are all the keys of `other` in `t`?
--- Only compares keys!
+--- are all the values of `other` in `t`?
 -- @param t a set
 -- @param other a possible subset
--- @return true or false
+-- @treturn bool
 function ml.issubset(t,other)
     for k,v in pairs(other) do
         if t[k] == nil then return false end
@@ -530,11 +595,15 @@ function ml.issubset(t,other)
     return true
 end
 
+--- are all the keys of `other` in `t`?
+-- @param t a table
+-- @param other another table
+-- @treturn bool
 ml.contains_keys = ml.issubset
 
---- return the number of keys in this table.
+--- return the number of keys in this table, or members in this set.
 -- @param t a table
--- @return key count, (which is set cardinality)
+-- @treturn int key count
 function ml.count (t)
     local count = 0
     for k in pairs(t) do count = count + 1 end
@@ -542,41 +611,12 @@ function ml.count (t)
 end
 
 --- do these tables have the same keys?
+-- THis is set equality.
 -- @param t a table
 -- @param other a table
 -- @return true or false
 function ml.equal_keys(t,other)
     return ml.issubset(t,other) and ml.issubset(other,t)
-end
-
-local function makeT (...) return {...} end
-local function nop (x) return x end
-
-local function collect_ (condn,iter,obj,...)
-    local n = type(condn) == 'number' and condn
-    local pred = ml.callable(condn) and condn
-    local kv = select('#',...) > 0
-    local start = select(1,...)
-    local res,k = {},1
-    for key,value in iter,obj,start do
-        value = kv and value or key
-        res[k] = value
-        k = k + 1
-        if pred and not pred(value) then
-            break
-        elseif n and k > n then
-            break
-        end
-    end
-    return Array(res)
-end
-
-function ml.collect (...)
-    return collect_(nil,...)
-end
-
-function ml.collect_until (n,...)
-    return collect_(n,...)
 end
 
 ---------------------------------------------------
@@ -586,21 +626,13 @@ end
 
 --- create a function which will throw an error on failure.
 -- @param f a function that returns nil,err if it fails
--- @param quit exit the script immediately with the error (default false)
 -- @return an equivalent function that raises an error
-function ml.throw(f,quit)
+function ml.throw(f)
     f = ml.function_arg(f)
     return function(...)
-        local res,err = f(...)
-        if err then
-            if quit then
-                io.stderr:write(err,'\n')
-                os.exit(1)
-            else
-                error(err,2)
-            end
-        end
-        return res
+        local r1,r2,r3 = f(...)
+        if not r1 then error(r2,2) end
+        return r1,r2,r3
     end
 end
 
@@ -648,10 +680,52 @@ function ml.callable (obj)
     return type(obj) == 'function' or getmetatable(obj) and getmetatable(obj).__call
 end
 
--- exported but not documented because this is used as a hook for people
+--- create a callable from an indexable object.
+-- @param t a table or other indexable object.
+function ml.map2fun (t)
+    return setmetatable({},{
+        __call = function(obj,key) return t[key] end
+    })
+end
+
+--- create an indexable object from a callable.
+-- @param f a callable of one argument.
+function ml.fun2map (f)
+    return setmetatable({},{
+        __index = function(obj,key) return f(key) end;
+        __newindex = function() error("not writeable!",2) end
+    })
+end
+
+local function _string_lambda (f)
+    local code = 'return function(X,Y,Z) return '..f..' end'
+    local chunk = assert(loadstring(code,'tmp'))
+    return chunk()
+end
+
+local string_lambda
+
+--- defines how we convert something to a callable.
+--
+-- Currently, anything that matches @{callable} or is a _string lambda_.
+-- These are expressions with any of the placeholders, `X`,`Y` or `Z`
+-- corresponding to the first, second or third argument to the function.
+--
+-- This can be overriden by people
 -- wishing to extend the idea of 'callable' in this library.
+-- @param f a callable or a string lambda.
+-- @return a function
+-- @raise error if `f` is not callable in any way, or errors in string lambda.
+-- @usage function_arg('X+Y')(1,2) == 3
 function ml.function_arg(f)
-    assert(ml.callable(f),"expecting a function or callable object")
+    if type(f) == 'string' then
+        if not string_lambda then
+            string_lambda = ml.memoize(_string_lambda)
+        end
+        f = string_lambda(f)
+    else
+        assert(ml.callable(f),"expecting a function or callable object")
+    end
     return f
 end
 
@@ -672,7 +746,6 @@ function ml.memoize(func)
     })
 end
 
-
 ---------------------------------------------------
 -- Classes.
 -- @section class
@@ -684,10 +757,11 @@ end
 -- class has a constructor, you can call it as the `super()` method.
 -- Every class has a `_class` and a maybe-nil `_base` field, which can
 -- be accessed through the object.
+--
 -- All metamethods are inherited.
 -- The class is given a function `Klass.class_of(obj)`.
 -- @param base optional base class
--- @return the metatable representing the class
+-- @return the callable metatable representing the class
 function ml.class(base)
     local klass, base_ctor = {}
     if base then
@@ -723,39 +797,66 @@ function ml.class(base)
     })
     return klass
 end
+
 ------------------------
 -- a simple Array class.
+-- `table` functions: `sort`,`concat`,`insert`,`remove`,`insert` as `append`.
+--
+-- `ml` functions: `ifilter` as `filter`,`imap` as `map`,`sub`,`indexby`,`range`,
+-- `indexof`,`ifind` as `find`,`extend`,`split` and `collect`.
+--
+-- The `sorted` method returns a sorted copy.
+--
+-- Concatenation, equality and custom tostring is defined.
+--
+-- This implementation has covariant methods; so that methods like `map` and `sub`
+-- will return an object of the derived type, not `Array`
 -- @table Array
 
-Array = ml.class()
+local Array = ml.class()
 
-local C=ml.compose
+local extend, setmetatable, C = ml.extend, setmetatable, ml.compose
+
+local function set_class (self,res)
+    return setmetatable(res,self._class)
+end
+
+local function awrap (fun)
+    return function(self,...) return set_class(self,fun(self,...))  end
+end
+
+local function awraps (fun)
+    return function(self,f,...) return set_class(self,fun(f,self,...))  end
+end
 
 -- a class is just a table of functions, so we can do wholesale updates!
 ml.import(Array,{
     -- straight from the table library
     concat=table.concat,insert=table.insert,remove=table.remove,append=table.insert,
     -- originals return table; these versions make the tables into arrays.
-    filter=C(Array,ml.ifilter),sub=C(Array,ml.sub), indexby=C(Array,ml.indexby),
-    range = C(Array,ml.range),
-    indexof=ml.indexof, find=ml.ifind, extend=ml.extend
+    filter=awrap(ml.ifilter),sub=awrap(ml.sub), indexby=awrap(ml.indexby),
+    map=awraps(ml.imap), map2=awraps(ml.imap2),
+    range=C(Array,ml.range),split=C(Array,ml.split),collect=C(Array,ml.collect),
+    indexof=ml.indexof, find=ml.ifind, extend=extend
 })
 
 -- A constructor can return a _specific_ object
 function Array:_init(t)
     if not t then return nil end  -- no table, make a new one
-    if getmetatable(t)==Array then  -- was already a Array: copy constructor!
+    if t._class == self._class then  -- was already a Array: copy constructor!
         t = ml.sub(t,1)
     end
     return t
 end
 
--- need to do this to rearrange self/function order
+function Array:sort(f)
+    table.sort(self,ml.function_arg(f))
+    return self
+end
 
-function Array:sort(f) table.sort(self,f); return self end
-function Array:sorted(f) return Array(self):sort(f) end
-function Array:map(f,...) return Array(ml.imap(f,self,...)) end
-function Array:map2(f,other) return Array(ml.imap2(f,self,other)) end
+function Array:sorted(f)
+    return self:sub(1):sort(f)
+end
 
 function Array:__tostring()
     return '{' .. self:map(ml.tstring):concat ',' .. '}'
@@ -770,11 +871,8 @@ function Array.__eq(l1,l2)
 end
 
 function Array.__concat (l1,l2)
-    return Array(ml.extend(ml.extend({},l1),l2))
+    return set_class(l1,extend({},l1,l2))
 end
-
--- x(2,3) is short for x:sub(2,3)
-Array.__call = Array.sub
 
 ml.Array = Array
 ml.List = Array

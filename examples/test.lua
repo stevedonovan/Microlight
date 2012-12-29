@@ -43,6 +43,20 @@ asserteq(split('one,two,three,',','),a123)
 asserteq(split('one, two,three  ','[,%s]+'),a123)
 asserteq(split('one two  three  ','[,%s]+'),a123)
 
+--- paths
+-- note that forward slashes also work on Windows
+local P = '/users/steve/bonzo.dog'
+
+local path,name = ml.splitpath(P)
+
+asserteq(path,'/users/steve')
+asserteq(name,'bonzo.dog')
+
+local basename,ext = ml.splitext(P)
+
+asserteq(basename,'/users/steve/bonzo')
+asserteq(ext,'.dog')
+
 
 t = {10,20,30,40}
 
@@ -261,9 +275,10 @@ function NA:normalize ()
     return self:transform('X/Y',self:sum())
 end
 
-NA.tostring = bind2(NA.map,tostring)
-
-NA.format = bind2(NA.map,'Y:format(X)')
+NA:mappers {
+    tostring = tostring,
+    format = string.format
+}
 
 asserteq(NA{10,20}:tostring(),{'10','20'})
 

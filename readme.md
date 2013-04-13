@@ -17,7 +17,7 @@ Mailing list started by Jay Carlson, and was implemented by myself and Dirk Laur
 
 ## Strings
 
-THere is no built-in way to show a text representation of a Lua table, which can be
+There is no built-in way to show a text representation of a Lua table, which can be
 frustrating for people first using the interactive prompt. Microlight provides `tstring`.
 Please note that globally redefining `tostring` is _not_ a good idea for Lua application
 development! This trick is intended to make experimation more satisfying:

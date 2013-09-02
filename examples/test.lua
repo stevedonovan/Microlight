@@ -116,6 +116,10 @@ a2 = ta:filter(function(x) return x % 2 == 0 end)
 
 asserteq(a2,A{2,12,50,60})
 
+ta = A{10,2,5,4,9}
+ta:sort()
+asserteq(ta,A{2,4,5,9,10})
+
 -- make a new array by mapping the square function over its elements
 -- the map method is equivalent to ml.imap
 a3 = Array.range(1,4):map(function(x) return x*x end)

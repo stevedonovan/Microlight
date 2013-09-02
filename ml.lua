@@ -919,7 +919,8 @@ if not rawget(_G,'NO_MICROLIGHT_ARRAY') then
     end
 
     function Array:sort(f)
-        table.sort(self,function_arg(f))
+        if type(f) ~= "nil" then f = function_arg(f) end
+        table.sort(self,f)
         return self
     end
 

@@ -8,6 +8,8 @@ local ml = {}
 local select,pairs = select,pairs
 local function_arg
 
+table.unpack = table.unpack or unpack
+
 ---------------------------------------------------
 -- String utilties.
 -- @section string
@@ -585,7 +587,7 @@ function ml.import(t,...)
             libs[i] = lib
         end
     end
-    return ml.update(t,unpack(libs))
+    return ml.update(t,table.unpack(libs))
 end
 
 --- add the key/value pairs of arrays to the first array.

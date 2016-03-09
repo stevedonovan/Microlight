@@ -419,7 +419,7 @@ written like so: (note the different quotes needed to get a nested string lambda
 
 Lua and Javascript have two important things in common; objects are associative arrays,
 with sugar so that `t.key == t['key']`; there is no built-in class mechanism. This causes
-a lot of (iniital) unhappiness. It's straightforward to build a class system, and so it
+a lot of (initial) unhappiness. It's straightforward to build a class system, and so it
 is reinvented numerous times in incompatible ways.
 
 `class` works as expected:

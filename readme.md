@@ -8,7 +8,7 @@ Microlight is an attempt at 'library golf', by analogy to the popular nerd sport
 golf'. The idea here is to try capture some of these functions in one place and document
 them well enough so that it is easier to use them than to write them yourself.
 
-This library is intended to be a 'extra light' version of Penlight, which has nearly two
+This library is intended to be an 'extra light' version of Penlight, which has nearly two
 dozen modules and hundreds of functions.
 
 In Lua, anything beyond the core involves 'personal' choice, and this list of functions
@@ -17,10 +17,10 @@ Mailing list started by Jay Carlson, and was implemented by myself and Dirk Laur
 
 ## Strings
 
-THere is no built-in way to show a text representation of a Lua table, which can be
+There is no built-in way to show a text representation of a Lua table, which can be
 frustrating for people first using the interactive prompt. Microlight provides `tstring`.
 Please note that globally redefining `tostring` is _not_ a good idea for Lua application
-development! This trick is intended to make experimation more satisfying:
+development! This trick is intended to make experimentation more satisfying:
 
     > require 'ml'.import()
     > tostring = tstring
@@ -49,7 +49,7 @@ function to do it directly. So Microlight provides `ml.expand`.
 like `string.gsub`. (But pick one _or_ the other consistently.)
 
 Lua string functions match using string patterns, which are a powerful subset of proper
-regular expressions: they contain 'magic' characters like '.','$' etc which you need to
+regular expressions: they contain 'magic' characters like '.','$' etc. which you need to
 escape before using. `escape` is used when you wish to match a string literally:
 
     > = ('woo%'):gsub(escape('%'),'hoo')
@@ -60,7 +60,7 @@ escape before using. `escape` is used when you wish to match a string literally:
 ## Files and Paths
 
 Although `access` is available on most platforms, it's not part of the standard, (which
-is why it's spelt `_access` on Windows). So to test for the existance of a file, you need
+is why it's spelt `_access` on Windows). So to test for the existence of a file, you need
 to attempt to open it. So the `exist` function is easy to write:
 
     function ml.exists (filename)
@@ -138,7 +138,7 @@ To 'flatten' a table, just unpack it and use `extend`:
 
 More precisely, `extend` takes an indexable and writeable object, where the index
 runs from 1 to `#O` with no holes, and starts adding new elements at `O[#O+1]`.
-Simularly, the other arguments are indexable but need not be writeable. These objects
+Similarly, the other arguments are indexable but need not be writeable. These objects
 are typically tables, but don't need to be. You can exploit the guarantee that `extend`
 always goes sequentially from 1 to `#T`, and make the first argument an object:
 
@@ -162,7 +162,7 @@ to overwrite values, then use `true` for the fourth argument:
 
 (Please note that the _original_ table is modified by these functions.)
 
-`update' works like `extend`. except that all the key value pairs from the input tables
+`update` works like `extend`. except that all the key value pairs from the input tables
 are copied into the first argument. Keys may be overwritten by subsequent tables.
 
     > t = {}
@@ -250,7 +250,7 @@ no-one has preconceptions about it, except that it's a cool toy for imaginative 
     > = imapfilter(tonumber,{'one',1,'f',23,2})
     {1,23,2}
 
-`collect` makes a array out of an iterator. 'collectuntil` can be given a
+`collect` makes a array out of an iterator. `collectuntil` can be given a
 custom predicate and `collectn` takes up to a maximum number of values,
 which is useful for iterators that never terminate.
 (Note that we need to pass it either a proper iterator, like `pairs`, or
@@ -305,7 +305,7 @@ shape.  `invert` turns a array of values into a table with those values as keys:
     > = m
     {one=1,three=3,two=2}
 
-So from a array we get a reverse lookup map. This is also exactly what we want from a
+So from an array we get a reverse lookup map. This is also exactly what we want from a
 _set_: fast membership test and unique values.
 
 Sets don't particularly care about the actual value, as long as it evaluates as true or
@@ -380,7 +380,7 @@ going (after all, `bind2` is just a function like any other.)
     > hex = matcher '^%x+$'
 
 Predicates are particularly useful for `ifind` and `ifilter`.  It's now easy to filter
-out strings from a array that match `blank` or `hex`, for instance.
+out strings from an array that match `blank` or `hex`, for instance.
 
 It is not uncommon for Lua functions to return multiple useful values; sometimes the one
 you want is the second value - this is what `take2` does:
@@ -417,9 +417,9 @@ written like so: (note the different quotes needed to get a nested string lambda
 
 ## Classes
 
-Lua and Javascript have two important things in common; objects are associative arrays,
+Lua and JavaScript have two important things in common; objects are associative arrays,
 with sugar so that `t.key == t['key']`; there is no built-in class mechanism. This causes
-a lot of (iniital) unhappiness. It's straightforward to build a class system, and so it
+a lot of (initial) unhappiness. It's straightforward to build a class system, and so it
 is reinvented numerous times in incompatible ways.
 
 `class` works as expected:
@@ -546,7 +546,7 @@ function. Such strings are expressions containing the placeholder variables `X`,
     {11,21}
 
 String lambdas are more limited. There's no easy (or efficient) way for them to access
-local variables like proper functions; they only see the global environment. BUt I
+local variables like proper functions; they only see the global environment. But I
 consider this a virtue, since they are intended to be 'pure' functions with no
 side-effects.
 

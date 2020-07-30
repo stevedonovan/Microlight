@@ -162,7 +162,7 @@ to overwrite values, then use `true` for the fourth argument:
 
 (Please note that the _original_ table is modified by these functions.)
 
-`update' works like `extend`. except that all the key value pairs from the input tables
+`update` works like `extend`. except that all the key value pairs from the input tables
 are copied into the first argument. Keys may be overwritten by subsequent tables.
 
     > t = {}
@@ -250,7 +250,7 @@ no-one has preconceptions about it, except that it's a cool toy for imaginative 
     > = imapfilter(tonumber,{'one',1,'f',23,2})
     {1,23,2}
 
-`collect` makes a array out of an iterator. 'collectuntil` can be given a
+`collect` makes a array out of an iterator. `collectuntil` can be given a
 custom predicate and `collectn` takes up to a maximum number of values,
 which is useful for iterators that never terminate.
 (Note that we need to pass it either a proper iterator, like `pairs`, or
@@ -582,7 +582,7 @@ but the result _will_ be an Array.
 
 Every library project has a few things which didn't make the final cut, and this is
 particularly true of Microlight.  The `ml_properties` module allows you to define
-properties in your classes. This comes from `examples/test.lua':
+properties in your classes. This comes from `examples/test.lua`:
 
     local props = require 'ml_properties'
 

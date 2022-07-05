@@ -758,6 +758,8 @@ function ml.fun2map (f)
     })
 end
 
+local loadstring = loadstring or load
+
 local function _string_lambda (f)
     local code = 'return function(X,Y,Z) return '..f..' end'
     local chunk = assert(loadstring(code,'tmp'))
